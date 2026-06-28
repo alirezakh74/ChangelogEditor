@@ -5,12 +5,10 @@ import QtQuick.Dialogs 1.3
 
 Rectangle {
     id: editorContainer
-    color: "#f1f2f6"
+    color: "#11111b" // Deep canvas backdrop
 
     property string workingMode: "CREATE"
     property int selectionPointerIndex: -1
-
-    // Tracks the live changes list as a reactive array when adding or editing a node
     property var currentStagingChanges: []
 
     function appendItemToBuffer() {
@@ -18,7 +16,7 @@ Rectangle {
         if(cleanInput !== "") {
             var items = currentStagingChanges;
             items.push(cleanInput);
-            currentStagingChanges = [...items]; // Force re-evaluation layout update
+            currentStagingChanges = [...items];
             txtItemEntry.text = "";
             txtItemEntry.forceActiveFocus();
         }
@@ -69,25 +67,41 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // File Management Context Bar
+        // Dark Upper Context Operations Bar
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 48
-            color: "#ffffff"
-            border.color: "#dcdde1"
+            color: "#1e1e2e"
+            border.color: "#313244"
             border.width: 1
 
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 15
                 anchors.rightMargin: 15
-                spacing: 10
+                spacing: 12
 
-                Button { text: "🆕 New Profile"; onClicked: { BackendEngine.resetWorkspace(); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); } flat: true }
-                Button { text: "📁 Load File"; onClicked: openDialog.open(); flat: true }
+                Button {
+                    text: "🆕 New Profile"
+                    flat: true
+                    contentItem: Text { text: parent.text; color: "#cdd6f4" }
+                    onClicked: { BackendEngine.resetWorkspace(); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); }
+                }
+                Button {
+                    text: "📁 Load File"
+                    flat: true
+                    contentItem: Text { text: parent.text; color: "#cdd6f4" }
+                    onClicked: openDialog.open()
+                }
                 Button {
                     text: "💾 Write Save"
                     highlighted: BackendEngine.isDirty
+                    background: Rectangle {
+                        color: BackendEngine.isDirty ? "#2ed573" : "#313244"
+                        radius: 4
+                        opacity: BackendEngine.isDirty ? 0.2 : 1.0
+                    }
+                    contentItem: Text { text: parent.text; color: BackendEngine.isDirty ? "#2ed573" : "#cdd6f4"; font.bold: BackendEngine.isDirty }
                     onClicked: {
                         if (BackendEngine.currentFilePath === "") {
                             saveAsDialog.open()
@@ -96,14 +110,20 @@ Rectangle {
                         }
                     }
                 }
-                Button { text: "💾 Save File As..."; onClicked: saveAsDialog.open(); flat: true }
+                Button {
+                    text: "💾 Save File As..."
+                    flat: true
+                    contentItem: Text { text: parent.text; color: "#cdd6f4" }
+                    onClicked: saveAsDialog.open()
+                }
 
                 Item { Layout.fillWidth: true }
 
                 Text {
                     text: "Target Workspace: " + (BackendEngine.currentFilePath || "Unsaved Buffer Instance")
                     font.italic: true
-                    color: "#57606f"
+                    color: "#7f849c"
+                    font.pixelSize: 12
                 }
             }
         }
@@ -113,22 +133,22 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Left Layout Input Controller (Form Field Side)
+            // Left Layout Input Form Control Side
             Rectangle {
                 SplitView.minimumWidth: 440
                 SplitView.preferredWidth: 480
-                color: "#ffffff"
+                color: "#1e1e2e"
 
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 20
-                    spacing: 12
+                    spacing: 14
 
                     Text {
                         text: workingMode === "CREATE" ? "➕ Add Document Version" : "📝 Modify Version Node"
                         font.pixelSize: 16
                         font.bold: true
-                        color: "#2f3542"
+                        color: "#b4befe"
                     }
 
                     RowLayout {
@@ -137,23 +157,30 @@ Rectangle {
                         TextField {
                             id: txtVersion
                             placeholderText: "Version (e.g. 1.0.4)"
+                            color: "#cdd6f4"
+                            placeholderTextColor: "#6c7086"
                             Layout.fillWidth: true
+                            background: Rectangle { color: "#11111b"; border.color: parent.activeFocus ? "#b4befe" : "#313244"; radius: 4 }
                         }
                         TextField {
                             id: txtDate
                             placeholderText: "Date (YYYY-MM-DD)"
                             text: BackendEngine.getSystemDateString()
+                            color: "#cdd6f4"
+                            placeholderTextColor: "#6c7086"
                             Layout.preferredWidth: 140
+                            background: Rectangle { color: "#11111b"; border.color: parent.activeFocus ? "#b4befe" : "#313244"; radius: 4 }
                         }
                     }
 
-                    Text { text: "Manage Changes Staging Stack (" + currentStagingChanges.length + ")"; font.bold: true; font.pixelSize: 11; color: "#747d8c" }
+                    Text { text: "Manage Changes Staging Stack (" + currentStagingChanges.length + ")"; font.bold: true; font.pixelSize: 11; color: "#a6adc8" }
 
+                    // Interactive Staging Container Panel
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: "#f8f9fa"
-                        border.color: "#ced6e0"
+                        color: "#11111b"
+                        border.color: "#313244"
                         radius: 4
                         clip: true
 
@@ -166,29 +193,29 @@ Rectangle {
 
                             delegate: Rectangle {
                                 width: stagingListView.width
-                                height: 36
-                                color: "white"
+                                height: 38
+                                color: "#181825"
                                 radius: 4
-                                border.color: "#e2e8f0"
+                                border.color: "#313244"
 
                                 RowLayout {
                                     anchors.fill: parent
-                                    anchors.leftMargin: 8
-                                    anchors.rightMargin: 8
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 6
                                     spacing: 8
 
-                                    Text { text: "•"; font.bold: true; color: "#3498db" }
+                                    Text { text: "•"; font.bold: true; color: "#b4befe"; font.pixelSize: 14 }
 
                                     TextField {
                                         text: modelData
                                         Layout.fillWidth: true
                                         font.pixelSize: 13
-                                        color: "#2c3e50"
+                                        color: "#cdd6f4"
                                         selectByMouse: true
 
                                         background: Rectangle {
                                             color: "transparent"
-                                            border.color: parent.activeFocus ? "#3498db" : "transparent"
+                                            border.color: parent.activeFocus ? "#b4befe" : "transparent"
                                             border.width: 1
                                         }
 
@@ -202,9 +229,9 @@ Rectangle {
                                     Button {
                                         text: "✕"
                                         flat: true
-                                        implicitWidth: 24
-                                        implicitHeight: 24
-                                        contentItem: Text { text: "✕"; color: "#ff4757"; font.bold: true; horizontalAlignment: Text.AlignHCenter }
+                                        implicitWidth: 28
+                                        implicitHeight: 28
+                                        contentItem: Text { text: "✕"; color: "#f38ba8"; font.bold: true; horizontalAlignment: Text.AlignHCenter }
                                         onClicked: removeItemFromBuffer(index)
                                     }
                                 }
@@ -214,7 +241,7 @@ Rectangle {
                         Text {
                             text: "No active changes pushed into this node yet."
                             anchors.centerIn: parent
-                            color: "#a4b0be"
+                            color: "#585b70"
                             visible: currentStagingChanges.length === 0
                             font.italic: true
                         }
@@ -224,38 +251,52 @@ Rectangle {
                         Layout.fillWidth: true
                         TextField {
                             id: txtItemEntry
-                            placeholderText: "Type description & press Enter or Push..."
+                            placeholderText: "Type bullet description here..."
+                            color: "#cdd6f4"
+                            placeholderTextColor: "#6c7086"
                             Layout.fillWidth: true
+                            background: Rectangle { color: "#11111b"; border.color: parent.activeFocus ? "#b4befe" : "#313244"; radius: 4 }
                             onAccepted: editorContainer.appendItemToBuffer()
                         }
                         Button {
                             text: "➕ Push"
+                            background: Rectangle { color: "#313244"; radius: 4 }
+                            contentItem: Text { text: parent.text; color: "#cdd6f4"; font.bold: true }
                             onClicked: editorContainer.appendItemToBuffer()
                         }
                     }
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 10
+                        spacing: 12
                         Button {
                             text: "Clear Fields"
                             Layout.fillWidth: true
+                            background: Rectangle { color: "#313244"; radius: 4 }
+                            contentItem: Text { text: parent.text; color: "#cdd6f4" }
                             onClicked: editorContainer.clearFormInput()
                         }
                         Button {
                             text: workingMode === "CREATE" ? "Inject Version Node" : "Modify Node Vector"
                             Layout.fillWidth: true
-                            highlighted: true
                             enabled: txtVersion.text.trim() !== "" && currentStagingChanges.length > 0
+                            background: Rectangle {
+                                color: parent.enabled ? "#b4befe" : "#181825"
+                                radius: 4
+                            }
+                            contentItem: Text {
+                                text: parent.text;
+                                color: parent.enabled ? "#11111b" : "#585b70";
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                            }
                             onClicked: {
                                 var compositeString = currentStagingChanges.join("\n");
-
                                 if (workingMode === "CREATE") {
                                     BackendEngine.appendVersionEntry(txtVersion.text, txtDate.text, compositeString);
                                 } else {
                                     BackendEngine.commitVersionEntry(selectionPointerIndex, txtVersion.text, txtDate.text, compositeString);
                                 }
-
                                 editorContainer.clearFormInput();
                                 editorContainer.refreshVectorList();
                             }
@@ -264,17 +305,16 @@ Rectangle {
                 }
             }
 
-            // Right Array Mirror Preview Panel (Vector List Side)
+            // Right Array Mirror Preview Panel (Dark Vector Cards Stack)
             Rectangle {
                 SplitView.minimumWidth: 400
-                color: "#f8f9fa"
+                color: "#11111b"
 
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 20
-                    spacing: 10
+                    spacing: 12
 
-                    // Header Row combining Title and the repositioned Delete All button
                     RowLayout {
                         Layout.fillWidth: true
 
@@ -282,19 +322,17 @@ Rectangle {
                             text: "📋 Local Memory Nodes Vector (" + BackendEngine.totalVersions + ")"
                             font.pixelSize: 14
                             font.bold: true
-                            Layout.alignment: Qt.AlignVCenter
+                            color: "#cdd6f4"
                         }
 
                         Item { Layout.fillWidth: true }
 
-                        // Repositioned: Delete All Nodes Button
                         Button {
                             text: "🗑️ Delete All Nodes"
                             flat: true
-                            Layout.alignment: Qt.AlignVCenter
                             contentItem: Text {
                                 text: parent.text
-                                color: BackendEngine.totalVersions > 0 ? "#ff4757" : "#a4b0be"
+                                color: BackendEngine.totalVersions > 0 ? "#f38ba8" : "#45475a"
                                 font.bold: true
                                 font.pixelSize: 12
                             }
@@ -318,9 +356,9 @@ Rectangle {
                         delegate: Rectangle {
                             width: localMemoryNodesListView.width
                             implicitHeight: innerColumnLayout.height + 20
-                            color: "#ffffff"
+                            color: "#1e1e2e"
                             radius: 6
-                            border.color: "#e1b12c"
+                            border.color: selectionPointerIndex === index ? "#f9e2af" : "#313244"
                             border.width: selectionPointerIndex === index ? 2 : 1
 
                             ColumnLayout {
@@ -328,17 +366,17 @@ Rectangle {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.top: parent.top
-                                anchors.margins: 10
-                                spacing: 5
+                                anchors.margins: 14
+                                spacing: 8
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Text { text: "Version: " + BackendEngine.fetchVersionName(index); font.bold: true; font.pixelSize: 14 }
+                                    Text { text: "Version: " + BackendEngine.fetchVersionName(index); font.bold: true; font.pixelSize: 14; color: "#cdd6f4" }
                                     Item { Layout.fillWidth: true }
-                                    Text { text: BackendEngine.fetchVersionDate(index); color: "#7f8c8d" }
+                                    Text { text: BackendEngine.fetchVersionDate(index); color: "#9399b2"; font.pixelSize: 12 }
                                 }
 
-                                Rectangle { Layout.fillWidth: true; height: 1; color: "#f1f2f6" }
+                                Rectangle { Layout.fillWidth: true; height: 1; color: "#313244" }
 
                                 Column {
                                     Layout.fillWidth: true
@@ -348,8 +386,8 @@ Rectangle {
                                         RowLayout {
                                             width: parent.width
                                             spacing: 6
-                                            Text { text: "•"; color: "#7f8c8d" }
-                                            Text { text: modelData; font.pixelSize: 12; color: "#2c3e50"; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                                            Text { text: "•"; color: "#b4befe" }
+                                            Text { text: modelData; font.pixelSize: 12; color: "#a6adc8"; Layout.fillWidth: true; wrapMode: Text.Wrap }
                                         }
                                     }
                                 }
@@ -359,10 +397,14 @@ Rectangle {
                                     Item { Layout.fillWidth: true }
                                     Button {
                                         text: "Load Node"
+                                        background: Rectangle { color: "#313244"; radius: 4 }
+                                        contentItem: Text { text: parent.text; color: "#cdd6f4"; font.pixelSize: 11 }
                                         onClicked: editorContainer.loadActiveEntryToForm(index)
                                     }
                                     Button {
                                         text: "Delete Node"
+                                        background: Rectangle { color: "#45475a"; radius: 4 }
+                                        contentItem: Text { text: parent.text; color: "#f38ba8"; font.pixelSize: 11 }
                                         onClicked: {
                                             BackendEngine.removeVersionEntry(index);
                                             editorContainer.clearFormInput();
@@ -378,17 +420,6 @@ Rectangle {
         }
     }
 
-    FileDialog {
-        id: openDialog
-        title: "Load Schema File"
-        nameFilters: ["JSON Documents (*.json)"]
-        selectExisting: true
-        onAccepted: {
-            BackendEngine.loadFromFile(fileUrl);
-            editorContainer.clearFormInput();
-            editorContainer.refreshVectorList();
-        }
-    }
-
+    FileDialog { id: openDialog; title: "Load Schema File"; nameFilters: ["JSON Documents (*.json)"]; selectExisting: true; onAccepted: { BackendEngine.loadFromFile(fileUrl); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); } }
     FileDialog { id: saveAsDialog; title: "Save Schema File As"; nameFilters: ["JSON Documents (*.json)"]; selectExisting: false; onAccepted: BackendEngine.saveAsFile(fileUrl) }
 }

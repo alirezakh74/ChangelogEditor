@@ -8,46 +8,63 @@ Window {
     width: 1200
     height: 850
     visible: true
-    title: "Changelog Workspace Pro"
+    title: "Changelog Workspace Pro [Dark Edition]"
+    color: "#11111b" // Deepest structural base
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // Navigation Ribbon / Tab Bar Panel
+        // Dark Navigation Ribbon / Tab Bar Panel
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 52
-            color: "#1e272e"
+            color: "#181825" // Dark header surface
+            border.color: "#313244"
+            border.width: 1
 
             RowLayout {
                 anchors.fill: parent
-                spacing: 4
-                anchors.leftMargin: 10
+                spacing: 6
+                anchors.leftMargin: 15
 
                 Button {
                     id: tabBtnEditor
                     text: "✏️ Layout Workspace Editor"
-                    Layout.preferredHeight: 40
+                    Layout.preferredHeight: 38
                     flat: true
                     background: Rectangle {
-                        color: viewDeck.currentIndex === 0 ? "#3d4e5d" : "transparent"
+                        color: viewDeck.currentIndex === 0 ? "#2ed573" : "transparent"
                         radius: 4
+                        opacity: viewDeck.currentIndex === 0 ? 0.15 : 1.0
                     }
-                    contentItem: Text { text: parent.text; color: "white"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    contentItem: Text {
+                        text: parent.text
+                        color: viewDeck.currentIndex === 0 ? "#2ed573" : "#a6adc8"
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                     onClicked: viewDeck.currentIndex = 0
                 }
 
                 Button {
                     id: tabBtnViewer
                     text: "📋 Rendered Production View"
-                    Layout.preferredHeight: 40
+                    Layout.preferredHeight: 38
                     flat: true
                     background: Rectangle {
-                        color: viewDeck.currentIndex === 1 ? "#3d4e5d" : "transparent"
+                        color: viewDeck.currentIndex === 1 ? "#2ed573" : "transparent"
                         radius: 4
+                        opacity: viewDeck.currentIndex === 1 ? 0.15 : 1.0
                     }
-                    contentItem: Text { text: parent.text; color: "white"; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    contentItem: Text {
+                        text: parent.text
+                        color: viewDeck.currentIndex === 1 ? "#2ed573" : "#a6adc8"
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                     onClicked: {
                         viewDeck.currentIndex = 1
                         viewerScreen.synchronizeView()
@@ -58,7 +75,7 @@ Window {
 
                 Text {
                     text: BackendEngine.isDirty ? "⚠️ Unsaved Alterations" : "📦 Synchronized"
-                    color: BackendEngine.isDirty ? "#ffdd59" : "#05c46b"
+                    color: BackendEngine.isDirty ? "#f9e2af" : "#2ed573"
                     font.pixelSize: 12
                     font.bold: true
                     Layout.rightMargin: 20
@@ -90,9 +107,9 @@ Window {
         width: Math.max(300, lblToast.implicitWidth + 40)
         height: 44
         radius: 6
-        color: "#2f3542"
+        color: "#1e1e2e"
         border.width: 1
-        border.color: "#747d8c"
+        border.color: "#313244"
         opacity: 0
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 30
@@ -105,7 +122,7 @@ Window {
             id: lblToast
             anchors.centerIn: parent
             text: notificationToast.msg
-            color: "white"
+            color: "#cdd6f4"
             font.pixelSize: 13
         }
 
@@ -117,9 +134,10 @@ Window {
 
         function triggerPopup(info, isSuccess) {
             notificationToast.msg = info
-            notificationToast.color = isSuccess ? "#05c46b" : "#ff5e57"
-            notificationToast.border.color = isSuccess ? "#2ed573" : "#ff4757"
+            notificationToast.color = isSuccess ? "#1e1e2e" : "#1e1e2e"
+            notificationToast.border.color = isSuccess ? "#2ed573" : "#f38ba8"
             notificationToast.opacity = 1
+            lblToast.color = isSuccess ? "#2ed573" : "#f38ba8"
             toastTimer.restart()
         }
     }
