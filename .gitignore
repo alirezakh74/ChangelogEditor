@@ -1,0 +1,190 @@
+# =========================
+# Build and temporary files
+# =========================
+
+# Ignore build directories
+/QXlsx/
+/Plugin/generic/
+/Plugin/iconengines/
+/Plugin/imageformats/
+/Plugin/networkinformation/
+/Plugin/platforminputcontexts/
+/Plugin/platforms/
+/Plugin/qmltooling/
+/Plugin/tls/
+build/
+/build/
+/build-*/
+*_build_*/
+
+# Ignore CMake-generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# Ignore QMake-generated files
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+
+# Ignore Ninja build files
+.ninja_deps
+.ninja_log
+
+# Ignore Visual Studio build files
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+Debug/
+Release/
+ipch/
+*.log
+*.tlog
+*.obj
+*.pdb
+*.idb
+
+# Ignore macOS build files
+*.xcodeproj
+*.xcworkspace
+*.DS_Store
+
+# Ignore Linux build files
+*.o
+*.so
+*.a
+
+# Ignore other temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# =========================
+# Qt-specific files
+# =========================
+
+# Ignore Qt Creator files
+*.autosave
+*.qmlproject.user
+*.qmlc
+*.jsc
+
+# Ignore MOC, RCC, and UIC generated files
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# Ignore plugin cache
+*.pluginspec
+*.json
+
+# =========================
+# Deployment files
+# =========================
+
+# Ignore windeployqt output
+windeployqt/
+
+# Ignore macdeployqt output
+macdeployqt/
+
+# Ignore linuxdeployqt output
+linuxdeployqt/
+
+# =========================
+# Other files
+# =========================
+
+# Ignore user-specific files
+*.ini
+*.cfg
+*.config
+
+# Ignore logs and crash reports
+*.log
+*.crash
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore Python cache files (if applicable)
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore third-party dependencies (if not part of the repo)
+/third_party/
+/vendor/
+
+# Ignore environment files
+.env
+.env.local
+
+# Created by https://www.toptal.com/developers/gitignore/api/qt
+# Edit at https://www.toptal.com/developers/gitignore?templates=qt
+
+### Qt ###
+# C++ objects and libs
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.so.*
+*.dll
+*.dylib
+
+# Qt-es
+object_script.*.Release
+object_script.*.Debug
+*_plugin_import.cpp
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+Makefile*
+*build-*
+*.qm
+*.prl
+
+# Qt unit tests
+target_wrapper.*
+
+# QtCreator
+*.autosave
+
+# QtCreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
+
+# QtCreator CMake
+CMakeLists.txt.user*
+
+# QtCreator 4.8< compilation database
+compile_commands.json
+
+# QtCreator local machine specific files for imported projects
+*creator.user*
+
+*_qmlcache.qrc
+
+# End of https://www.toptal.com/developers/gitignore/api/qt

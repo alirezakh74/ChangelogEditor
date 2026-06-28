@@ -1,0 +1,27 @@
+<RCC>
+    <qresource prefix="/">
+        <file>assets/images/temp.png</file>
+        <file>assets/images/humidity.png</file>
+        <file>assets/images/plus-square.svg</file>
+        <file>assets/images/plus.svg</file>
+        <file>assets/images/delete.svg</file>
+        <file>assets/images/delete2.svg</file>
+        <file>assets/images/checked.png</file>
+        <file>assets/images/arrow-up.svg</file>
+        <file>assets/images/needle.png</file>
+        <file>assets/images/needle-white.png</file>
+        <file>assets/fonts/fa-solid-900.ttf</file>
+        <file>assets/images/needle-cyan.png</file>
+        <file>assets/fonts/FontAwesomePro-Solid-900.otf</file>
+        <file>assets/images/xmark.svg</file>
+        <file>assets/fonts/fa-v4compatibility.ttf</file>
+        <file>assets/images/temp2.png</file>
+        <file>assets/images/circle.png</file>
+        <file>Main.qml</file>
+        <file>ChangeLogEditor.qml</file>
+        <file>ChangeLogItem.qml</file>
+        <file>ChangeLogView.qml</file>
+        <file>WorkspaceEditor.qml</file>
+        <file>ProductionViewer.qml</file>
+    </qresource>
+</RCC>
