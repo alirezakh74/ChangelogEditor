@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(TestChangelog VERSION 0.1 LANGUAGES CXX)
+project(ChangelogEditor VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,15 +19,15 @@ set(PROJECT_SOURCES
     resources.qrc
 )
 
-add_executable(TestChangelog ${PROJECT_SOURCES})
+add_executable(ChangelogEditor ${PROJECT_SOURCES})
 
-target_link_libraries(TestChangelog PRIVATE
+target_link_libraries(ChangelogEditor PRIVATE
     Qt5::Core
     Qt5::Quick
 )
 
-set_target_properties(TestChangelog PROPERTIES
-    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.TestChangelog
+set_target_properties(ChangelogEditor PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.ChangelogEditor
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE

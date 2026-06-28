@@ -1,0 +1,1 @@
+windeployqt --quick --qmldir "D:\Khodabande\Khodabande_Test_Projects\ChangelogEditor" ChangelogEditor.exe

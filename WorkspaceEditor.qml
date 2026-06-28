@@ -10,6 +10,7 @@ Rectangle {
     property string workingMode: "CREATE"
     property int selectionPointerIndex: -1
     property var currentStagingChanges: []
+    property var currentStagingImages: []
 
     function appendItemToBuffer() {
         var cleanInput = txtItemEntry.text.trim();
@@ -34,6 +35,18 @@ Rectangle {
         currentStagingChanges = [...items];
     }
 
+    function removeImageFromBuffer(idx) {
+            var imgs = currentStagingImages;
+            if (idx >= 0 && idx < imgs.length) {
+                // Securely invoke backend C++ file manipulation logic
+                BackendEngine.deleteImageFromUploads(imgs[idx]);
+
+                // Remove the reference entry from frontend state engine buffer
+                imgs.splice(idx, 1);
+                currentStagingImages = [...imgs];
+            }
+        }
+
     function loadActiveEntryToForm(idx) {
         workingMode = "UPDATE";
         selectionPointerIndex = idx;
@@ -46,6 +59,13 @@ Rectangle {
         } else {
             currentStagingChanges = rawJoined.split("\n");
         }
+
+        var rawImagesJoined = BackendEngine.fetchVersionImagesJoined(idx);
+        if (rawImagesJoined.trim() === "") {
+            currentStagingImages = [];
+        } else {
+            currentStagingImages = rawImagesJoined.split("\n");
+        }
     }
 
     function clearFormInput() {
@@ -54,6 +74,7 @@ Rectangle {
         txtVersion.text = "";
         txtDate.text = BackendEngine.getSystemDateString();
         currentStagingChanges = [];
+        currentStagingImages = [];
         txtItemEntry.text = "";
     }
 
@@ -67,7 +88,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Context File Utilities Toolbar Operations Bar
+        // Toolbar Operations
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 48
@@ -141,15 +162,14 @@ Rectangle {
             }
         }
 
-        // Workspace Working Split Layout
         SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Left Layout Input Controller Side
+            // Left Panel Input Controller Side
             Rectangle {
-                SplitView.minimumWidth: 440
-                SplitView.preferredWidth: 480
+                SplitView.minimumWidth: 460
+                SplitView.preferredWidth: 500
                 color: windowRoot.themeBgCard
 
                 ColumnLayout {
@@ -188,7 +208,6 @@ Rectangle {
 
                     Text { text: "Manage Changes Staging Stack (" + currentStagingChanges.length + ")"; font.bold: true; font.pixelSize: 11; color: windowRoot.themeTextSub }
 
-                    // Interactive Staging Component Back Panel
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -225,17 +244,8 @@ Rectangle {
                                         font.pixelSize: 13
                                         color: windowRoot.themeTextMain
                                         selectByMouse: true
-
-                                        background: Rectangle {
-                                            color: "transparent"
-                                            border.color: parent.activeFocus ? windowRoot.themeAccent : "transparent"
-                                            border.width: 1
-                                        }
-
-                                        onAccepted: {
-                                            modifyItemInBuffer(index, text)
-                                            focus = false
-                                        }
+                                        background: Rectangle { color: "transparent"; border.color: parent.activeFocus ? windowRoot.themeAccent : "transparent"; border.width: 1 }
+                                        onAccepted: { modifyItemInBuffer(index, text); focus = false; }
                                         onEditingFinished: modifyItemInBuffer(index, text)
                                     }
 
@@ -264,7 +274,7 @@ Rectangle {
                         Layout.fillWidth: true
                         TextField {
                             id: txtItemEntry
-                            placeholderText: "Type bullet description here..."
+                            placeholderText: "Type change description here..."
                             color: windowRoot.themeTextMain
                             placeholderTextColor: windowRoot.isDarkTheme ? "#6c7086" : "#a4b0be"
                             Layout.fillWidth: true
@@ -276,6 +286,74 @@ Rectangle {
                             background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
                             contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                             onClicked: editorContainer.appendItemToBuffer()
+                        }
+                    }
+
+                    Text { text: "Attached Media Assets (" + currentStagingImages.length + ")"; font.bold: true; font.pixelSize: 11; color: windowRoot.themeTextSub }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        Button {
+                            text: "🖼️ Attach Images"
+                            Layout.preferredHeight: 36
+                            background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
+                            contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            onClicked: imagePickerDialog.open()
+                        }
+
+                        ScrollView {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 64
+                            ScrollBar.vertical.policy: ScrollBar.AlwaysOff
+                            ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+
+                            RowLayout {
+                                spacing: 8
+                                Repeater {
+                                    model: currentStagingImages
+                                    Rectangle {
+                                        id: stagingImageWrapper
+                                        width: 60; height: 60
+                                        color: windowRoot.themeBgDeep
+                                        border.color: windowRoot.themeBorder
+                                        radius: 4
+
+                                        // Explicitly capture index context to avoid shadowing bugs
+                                        property int itemIndex: index
+
+                                        Image {
+                                            anchors.fill: parent
+                                            anchors.margins: 2
+                                            source: modelData
+                                            fillMode: Image.PreserveAspectCrop
+                                            clip: true
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: lightboxPopup.openGallery(editorContainer.currentStagingImages, stagingImageWrapper.itemIndex)
+                                        }
+
+                                        Rectangle {
+                                            width: 16; height: 16; radius: 8
+                                            color: "#ff4757"
+                                            anchors.top: parent.top
+                                            anchors.right: parent.right
+                                            anchors.margins: -4
+                                            z: 10
+                                            Text { text: "×"; color: "white"; font.bold: true; font.pixelSize: 12; anchors.centerIn: parent }
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: removeImageFromBuffer(stagingImageWrapper.itemIndex)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -294,24 +372,19 @@ Rectangle {
                             text: workingMode === "CREATE" ? "Inject Version Node" : "Modify Node Vector"
                             Layout.fillWidth: true
                             enabled: txtVersion.text.trim() !== "" && currentStagingChanges.length > 0
-                            background: Rectangle {
-                                color: parent.enabled ? windowRoot.themeAccent : windowRoot.themeBgDeep
-                                radius: 4
-                                border.color: windowRoot.themeBorder
-                            }
+                            background: Rectangle { color: parent.enabled ? windowRoot.themeAccent : windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
                             contentItem: Text {
                                 text: parent.text;
                                 color: injectNodeBtn.enabled ? (windowRoot.isDarkTheme ? "#11111b" : "#ffffff") : (windowRoot.isDarkTheme ? "#585b70" : "#a4b0be");
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                                font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                             }
                             onClicked: {
                                 var compositeString = currentStagingChanges.join("\n");
+                                var compositeImagesString = currentStagingImages.join("\n");
                                 if (workingMode === "CREATE") {
-                                    BackendEngine.appendVersionEntry(txtVersion.text, txtDate.text, compositeString);
+                                    BackendEngine.appendVersionEntry(txtVersion.text, txtDate.text, compositeString, compositeImagesString);
                                 } else {
-                                    BackendEngine.commitVersionEntry(selectionPointerIndex, txtVersion.text, txtDate.text, compositeString);
+                                    BackendEngine.commitVersionEntry(selectionPointerIndex, txtVersion.text, txtDate.text, compositeString, compositeImagesString);
                                 }
                                 editorContainer.clearFormInput();
                                 editorContainer.refreshVectorList();
@@ -321,7 +394,7 @@ Rectangle {
                 }
             }
 
-            // Right Array Mirror Preview Panel (Vector Cards Stack View)
+            // Right Panel (Preview Saved Node Cards Container)
             Rectangle {
                 SplitView.minimumWidth: 400
                 color: windowRoot.themeBgDeep
@@ -333,31 +406,14 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-
-                        Text {
-                            text: "📋 Local Memory Nodes Vector (" + BackendEngine.totalVersions + ")"
-                            font.pixelSize: 14
-                            font.bold: true
-                            color: windowRoot.themeTextMain
-                        }
-
+                        Text { text: "📋 Local Memory Nodes Vector (" + BackendEngine.totalVersions + ")"; font.pixelSize: 14; font.bold: true; color: windowRoot.themeTextMain }
                         Item { Layout.fillWidth: true }
-
                         Button {
                             text: "🗑️ Delete All Nodes"
                             flat: true
-                            contentItem: Text {
-                                text: parent.text
-                                color: BackendEngine.totalVersions > 0 ? "#ff4757" : (windowRoot.isDarkTheme ? "#45475a" : "#a4b0be")
-                                font.bold: true
-                                font.pixelSize: 12
-                            }
+                            contentItem: Text { text: parent.text; color: BackendEngine.totalVersions > 0 ? "#ff4757" : (windowRoot.isDarkTheme ? "#45475a" : "#a4b0be"); font.bold: true; font.pixelSize: 12 }
                             enabled: BackendEngine.totalVersions > 0
-                            onClicked: {
-                                BackendEngine.resetWorkspace();
-                                editorContainer.clearFormInput();
-                                editorContainer.refreshVectorList();
-                            }
+                            onClicked: { BackendEngine.resetWorkspace(); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); }
                         }
                     }
 
@@ -370,12 +426,15 @@ Rectangle {
                         model: BackendEngine.totalVersions
 
                         delegate: Rectangle {
+                            id: versionCardNode
                             width: localMemoryNodesListView.width
                             implicitHeight: innerColumnLayout.height + 20
                             color: windowRoot.themeBgCard
                             radius: 6
                             border.color: selectionPointerIndex === index ? "#e1b12c" : windowRoot.themeBorder
                             border.width: selectionPointerIndex === index ? 2 : 1
+
+                            property int cardRecordIndex: index
 
                             ColumnLayout {
                                 id: innerColumnLayout
@@ -387,9 +446,9 @@ Rectangle {
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Text { text: "Version: " + BackendEngine.fetchVersionName(index); font.bold: true; font.pixelSize: 14; color: windowRoot.themeTextMain }
+                                    Text { text: "Version: " + BackendEngine.fetchVersionName(cardRecordIndex); font.bold: true; font.pixelSize: 14; color: windowRoot.themeTextMain }
                                     Item { Layout.fillWidth: true }
-                                    Text { text: BackendEngine.fetchVersionDate(index); color: windowRoot.themeTextSub; font.pixelSize: 12 }
+                                    Text { text: BackendEngine.fetchVersionDate(cardRecordIndex); color: windowRoot.themeTextSub; font.pixelSize: 12 }
                                 }
 
                                 Rectangle { Layout.fillWidth: true; height: 1; color: windowRoot.themeBorder }
@@ -398,12 +457,39 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: 4
                                     Repeater {
-                                        model: BackendEngine.fetchVersionChangesJoined(index).split("\n")
+                                        model: BackendEngine.fetchVersionChangesJoined(versionCardNode.cardRecordIndex).split("\n")
                                         RowLayout {
-                                            width: parent.width
-                                            spacing: 6
+                                            width: parent.width; spacing: 6
                                             Text { text: "•"; color: windowRoot.themeAccent }
                                             Text { text: modelData; font.pixelSize: 12; color: windowRoot.themeTextSub; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                                        }
+                                    }
+                                }
+
+                                Flow {
+                                    id: savedCardImagesFlow
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    visible: BackendEngine.fetchVersionImagesJoined(versionCardNode.cardRecordIndex) !== ""
+
+                                    // Calculate array once at layout scope level
+                                    property var imageArray: BackendEngine.fetchVersionImagesJoined(versionCardNode.cardRecordIndex).split("\n")
+
+                                    Repeater {
+                                        model: savedCardImagesFlow.imageArray
+                                        Rectangle {
+                                            id: savedImageThumbnailWrapper
+                                            width: 40; height: 40; radius: 3; color: windowRoot.themeBgDeep; border.color: windowRoot.themeBorder
+
+                                            property int thumbIndex: index
+
+                                            Image { anchors.fill: parent; anchors.margins: 1; source: modelData; fillMode: Image.PreserveAspectCrop; clip: true }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: lightboxPopup.openGallery(savedCardImagesFlow.imageArray, savedImageThumbnailWrapper.thumbIndex)
+                                            }
                                         }
                                     }
                                 }
@@ -415,17 +501,13 @@ Rectangle {
                                         text: "Load Node"
                                         background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
                                         contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                                        onClicked: editorContainer.loadActiveEntryToForm(index)
+                                        onClicked: editorContainer.loadActiveEntryToForm(cardRecordIndex)
                                     }
                                     Button {
                                         text: "Delete Node"
                                         background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
                                         contentItem: Text { text: parent.text; color: "#ff4757"; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                                        onClicked: {
-                                            BackendEngine.removeVersionEntry(index);
-                                            editorContainer.clearFormInput();
-                                            editorContainer.refreshVectorList();
-                                        }
+                                        onClicked: { BackendEngine.removeVersionEntry(cardRecordIndex); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); }
                                     }
                                 }
                             }
@@ -438,4 +520,98 @@ Rectangle {
 
     FileDialog { id: openDialog; title: "Load Schema File"; nameFilters: ["JSON Documents (*.json)"]; selectExisting: true; onAccepted: { BackendEngine.loadFromFile(fileUrl); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); } }
     FileDialog { id: saveAsDialog; title: "Save Schema File As"; nameFilters: ["JSON Documents (*.json)"]; selectExisting: false; onAccepted: BackendEngine.saveAsFile(fileUrl) }
+
+    FileDialog {
+        id: imagePickerDialog
+        title: "Select Changelog Images Asset Elements"
+        nameFilters: ["Image files (*.png *.jpg *.jpeg)"]
+        selectMultiple: true
+        selectExisting: true
+        onAccepted: {
+            var items = currentStagingImages;
+            for (var i = 0; i < fileUrls.length; i++) {
+                var uploadedUrlPath = BackendEngine.copyImageToUploads(fileUrls[i]);
+                if (uploadedUrlPath !== "") {
+                    items.push(uploadedUrlPath);
+                }
+            }
+            currentStagingImages = [...items];
+        }
+    }
+
+    // High-Resolution Lightbox Viewer Popup Overlay
+    Rectangle {
+        id: lightboxPopup
+        anchors.fill: parent
+        color: "#f30b0b14"
+        visible: false
+        z: 50000
+
+        property var imageList: []
+        property int activeIndex: 0
+
+        function openGallery(imagesArray, startingIndex) {
+            imageList = imagesArray;
+            activeIndex = startingIndex;
+            visible = true;
+        }
+
+        MouseArea { anchors.fill: parent; propagateComposedEvents: false }
+
+        Image {
+            id: targetFullImage
+            anchors.centerIn: parent
+            width: parent.width * 0.85
+            height: parent.height * 0.78
+            source: lightboxPopup.imageList.length > 0 ? lightboxPopup.imageList[lightboxPopup.activeIndex] : ""
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+        }
+
+        // Left Navigation Arrow Button
+        Button {
+            anchors.left: parent.left
+            anchors.leftMargin: 25
+            anchors.verticalCenter: parent.verticalCenter
+            implicitWidth: 50; implicitHeight: 50
+            visible: lightboxPopup.activeIndex > 0
+            background: Rectangle { color: parent.hovered ? "#313244" : "#1e1e2e"; radius: 25; border.color: "#45475a"; border.width: 1 }
+            contentItem: Text { text: "◀"; color: "white"; font.pixelSize: 18; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            onClicked: lightboxPopup.activeIndex--
+        }
+
+        // Right Navigation Arrow Button
+        Button {
+            anchors.right: parent.right
+            anchors.rightMargin: 25
+            anchors.verticalCenter: parent.verticalCenter
+            implicitWidth: 50; implicitHeight: 50
+            visible: lightboxPopup.activeIndex < lightboxPopup.imageList.length - 1
+            background: Rectangle { color: parent.hovered ? "#313244" : "#1e1e2e"; radius: 25; border.color: "#45475a"; border.width: 1 }
+            contentItem: Text { text: "▶"; color: "white"; font.pixelSize: 18; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            onClicked: lightboxPopup.activeIndex++
+        }
+
+        // Close Lightbox Button
+        Button {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: 25
+            implicitWidth: 44; implicitHeight: 44
+            background: Rectangle { color: parent.hovered ? "#ff4757" : "#1e1e2e"; radius: 22; border.color: parent.hovered ? "transparent" : "#45475a" }
+            contentItem: Text { text: "✕"; color: "white"; font.bold: true; font.pixelSize: 16; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            onClicked: lightboxPopup.visible = false
+        }
+
+        // Progress Label
+        Text {
+            text: (lightboxPopup.activeIndex + 1) + " / " + lightboxPopup.imageList.length
+            color: "#a6adc8"
+            font.pixelSize: 14
+            font.bold: true
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 30
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+    }
 }

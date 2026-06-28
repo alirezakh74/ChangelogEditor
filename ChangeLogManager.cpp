@@ -9,6 +9,8 @@
 #include <QTextStream>
 #include <QDebug>
 #include <algorithm>
+#include <QCoreApplication>
+#include <QFileInfo>
 
 ChangeLogManager::ChangeLogManager(QObject *parent) : QObject(parent) {}
 
@@ -41,13 +43,11 @@ bool ChangeLogManager::loadFromFile(const QString &rawPath) {
     if (target.isEmpty()) return false;
 
     QFile file(target);
-    // Open using QIODevice::Text to safely normalize native line endings (\r\n vs \n)
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         emit statusMessageAlert("Failed to open file for reading", false);
         return false;
     }
 
-    // FIX: Read file using QTextStream bound tightly to UTF-8 to parse Persian Unicode characters cleanly
     QTextStream inStream(&file);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     inStream.setEncoding(QStringConverter::Utf8);
@@ -59,7 +59,6 @@ bool ChangeLogManager::loadFromFile(const QString &rawPath) {
     file.close();
 
     QJsonParseError parseError;
-    // Safely parse the document from the converted UTF-8 QString buffer
     QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8(), &parseError);
     if (parseError.error != QJsonParseError::NoError) {
         emit statusMessageAlert("Invalid JSON format detected", false);
@@ -80,6 +79,13 @@ bool ChangeLogManager::loadFromFile(const QString &rawPath) {
         for (const QJsonValue &val : changesArr) {
             entry.changeItems.append(val.toString());
         }
+
+        // Parse images structural data back out cleanly
+        QJsonArray imagesArr = innerObj.value("images").toArray();
+        for (const QJsonValue &val : imagesArr) {
+            entry.imagePaths.append(val.toString());
+        }
+
         m_entries.append(entry);
     }
 
@@ -115,6 +121,14 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
             changesArr.append(item);
         }
         innerObj.insert("changes", changesArr);
+
+        // Map attached images array into standard structural JSON schema
+        QJsonArray imagesArr;
+        for (const QString &img : entry.imagePaths) {
+            imagesArr.append(img);
+        }
+        innerObj.insert("images", imagesArr);
+
         rootObj.insert(entry.versionString, innerObj);
     }
 
@@ -127,14 +141,12 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
     QJsonDocument doc(rootObj);
     QTextStream outStream(&file);
 
-    // FIX: Enforce uniform UTF-8 file generation across all versions of Qt framework targets
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     outStream.setEncoding(QStringConverter::Utf8);
 #else
     outStream.setCodec("UTF-8");
 #endif
 
-    // Write out the raw text cleanly as Indented JSON
     outStream << doc.toJson(QJsonDocument::Indented);
     outStream.flush();
     file.close();
@@ -148,18 +160,19 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
     return true;
 }
 
-bool ChangeLogManager::appendVersionEntry(const QString &v, const QString &d, const QString &joinedChanges) {
+bool ChangeLogManager::appendVersionEntry(const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages) {
     if (v.trimmed().isEmpty()) return false;
 
     LogVersionEntry entry;
     entry.versionString = v.trimmed();
     entry.dateString = d.trimmed();
 
-    // Split the flattened string using a safe character boundary mapping (\n)
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     entry.changeItems = joinedChanges.split("\n", Qt::SkipEmptyParts);
+    entry.imagePaths = joinedImages.split("\n", Qt::SkipEmptyParts);
 #else
     entry.changeItems = joinedChanges.split("\n", QString::SkipEmptyParts);
+    entry.imagePaths = joinedImages.split("\n", QString::SkipEmptyParts);
 #endif
 
     m_entries.append(entry);
@@ -171,15 +184,18 @@ bool ChangeLogManager::appendVersionEntry(const QString &v, const QString &d, co
     return true;
 }
 
-bool ChangeLogManager::commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QString &joinedChanges) {
+bool ChangeLogManager::commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages) {
     if (targetIndex < 0 || targetIndex >= m_entries.size() || v.trimmed().isEmpty()) return false;
 
     m_entries[targetIndex].versionString = v.trimmed();
     m_entries[targetIndex].dateString = d.trimmed();
+
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     m_entries[targetIndex].changeItems = joinedChanges.split("\n", Qt::SkipEmptyParts);
+    m_entries[targetIndex].imagePaths = joinedImages.split("\n", Qt::SkipEmptyParts);
 #else
     m_entries[targetIndex].changeItems = joinedChanges.split("\n", QString::SkipEmptyParts);
+    m_entries[targetIndex].imagePaths = joinedImages.split("\n", QString::SkipEmptyParts);
 #endif
 
     organizeEntriesByVersion();
@@ -206,6 +222,7 @@ QVariantList ChangeLogManager::fetchSerializedEntries() const {
         map.insert("version", entry.versionString);
         map.insert("date", entry.dateString);
         map.insert("changes", entry.changeItems);
+        map.insert("images", entry.imagePaths); // Pass through to high-level visualizers
         list.append(map);
     }
     return list;
@@ -221,6 +238,10 @@ QString ChangeLogManager::fetchVersionDate(int index) const {
 
 QString ChangeLogManager::fetchVersionChangesJoined(int index) const {
     return (index >= 0 && index < m_entries.size()) ? m_entries[index].changeItems.join("\n") : "";
+}
+
+QString ChangeLogManager::fetchVersionImagesJoined(int index) const {
+    return (index >= 0 && index < m_entries.size()) ? m_entries[index].imagePaths.join("\n") : "";
 }
 
 QString ChangeLogManager::getSystemDateString() const {
@@ -239,4 +260,67 @@ void ChangeLogManager::organizeEntriesByVersion() {
         }
         return false;
     });
+}
+
+QString ChangeLogManager::copyImageToUploads(const QString &sourceUrl) {
+    QString srcPath = sanitizeUrlToNativePath(sourceUrl);
+    if (srcPath.isEmpty() || !QFile::exists(srcPath)) {
+        emit statusMessageAlert("Source image file does not exist", false);
+        return QString();
+    }
+
+    QString uploadDirPath = QCoreApplication::applicationDirPath() + "/upload";
+    QDir uploadDir(uploadDirPath);
+    if (!uploadDir.exists()) {
+        uploadDir.mkpath(".");
+    }
+
+    QFileInfo fileInfo(srcPath);
+    QString uniqueName = QString::number(QDateTime::currentMSecsSinceEpoch())
+                         + "_" + fileInfo.fileName();
+    QString targetFilePath = uploadDirPath + "/" + uniqueName;
+
+    if (QFile::copy(srcPath, targetFilePath)) {
+        return "file:///" + targetFilePath;
+    } else {
+        emit statusMessageAlert("Failed to copy image to local upload folder", false);
+        return QString();
+    }
+}
+
+bool ChangeLogManager::deleteImageFromUploads(const QString &fileUrlOrPath) {
+    if (fileUrlOrPath.isEmpty()) return false;
+
+    // Convert potential file:// URLs or raw paths into clean native file system paths
+    QString targetPath = sanitizeUrlToNativePath(fileUrlOrPath);
+
+    // If the path was stored as relative to the application binary, resolve it absolutely
+    if (QDir::isRelativePath(targetPath)) {
+        targetPath = QCoreApplication::applicationDirPath() + "/" + targetPath;
+    }
+
+    QFileInfo fileInfo(targetPath);
+    QString absoluteFilePath = fileInfo.absoluteFilePath();
+
+    // Resolve the strict absolute canonical path of the uploads folder
+    QString uploadDirPath = QFileInfo(QCoreApplication::applicationDirPath() + "/upload").absoluteFilePath();
+
+    // Security boundary validation check: prevent directory traversal escapes
+    if (!absoluteFilePath.startsWith(uploadDirPath)) {
+        emit statusMessageAlert("Security sandbox rejection: Action aborted.", false);
+        return false;
+    }
+
+    // Attempt physical file deletion if file exists on disk
+    if (QFile::exists(absoluteFilePath)) {
+        if (QFile::remove(absoluteFilePath)) {
+            emit statusMessageAlert("Asset physically removed from disk.", true);
+            return true;
+        } else {
+            emit statusMessageAlert("Failed to remove file asset from disk permissions.", false);
+            return false;
+        }
+    }
+
+    return false;
 }

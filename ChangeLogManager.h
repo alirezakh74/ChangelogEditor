@@ -10,6 +10,7 @@ struct LogVersionEntry {
     QString versionString;
     QString dateString;
     QStringList changeItems;
+    QStringList imagePaths; // Added to store multi-image asset targets
 };
 
 class ChangeLogManager : public QObject
@@ -31,17 +32,20 @@ public:
     Q_INVOKABLE bool saveToFile();
     Q_INVOKABLE bool saveAsFile(const QString &rawPath);
 
-    // High-reliability primitive value passing to bypass QML array conversion limitations
-    Q_INVOKABLE bool commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QString &joinedChanges);
-    Q_INVOKABLE bool appendVersionEntry(const QString &v, const QString &d, const QString &joinedChanges);
+    // Primitive value passing updated to handle paired image sets
+    Q_INVOKABLE bool commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages);
+    Q_INVOKABLE bool appendVersionEntry(const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages);
     Q_INVOKABLE void removeVersionEntry(int index);
 
     Q_INVOKABLE QVariantList fetchSerializedEntries() const;
     Q_INVOKABLE QString fetchVersionName(int index) const;
     Q_INVOKABLE QString fetchVersionDate(int index) const;
     Q_INVOKABLE QString fetchVersionChangesJoined(int index) const;
+    Q_INVOKABLE QString fetchVersionImagesJoined(int index) const; // Added descriptor helper
 
     Q_INVOKABLE QString getSystemDateString() const;
+    Q_INVOKABLE QString copyImageToUploads(const QString &sourceUrl);
+    Q_INVOKABLE bool deleteImageFromUploads(const QString &fileUrlOrPath);
 
 signals:
     void filePathChanged();
