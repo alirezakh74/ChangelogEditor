@@ -18,9 +18,6 @@
         <file>assets/images/temp2.png</file>
         <file>assets/images/circle.png</file>
         <file>Main.qml</file>
-        <file>ChangeLogEditor.qml</file>
-        <file>ChangeLogItem.qml</file>
-        <file>ChangeLogView.qml</file>
         <file>WorkspaceEditor.qml</file>
         <file>ProductionViewer.qml</file>
     </qresource>
