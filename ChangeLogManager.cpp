@@ -41,16 +41,26 @@ bool ChangeLogManager::loadFromFile(const QString &rawPath) {
     if (target.isEmpty()) return false;
 
     QFile file(target);
+    // Open using QIODevice::Text to safely normalize native line endings (\r\n vs \n)
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         emit statusMessageAlert("Failed to open file for reading", false);
         return false;
     }
 
-    QByteArray data = file.readAll();
+    // FIX: Read file using QTextStream bound tightly to UTF-8 to parse Persian Unicode characters cleanly
+    QTextStream inStream(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    inStream.setEncoding(QStringConverter::Utf8);
+#else
+    inStream.setCodec("UTF-8");
+#endif
+
+    QString fileContent = inStream.readAll();
     file.close();
 
     QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+    // Safely parse the document from the converted UTF-8 QString buffer
+    QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8(), &parseError);
     if (parseError.error != QJsonParseError::NoError) {
         emit statusMessageAlert("Invalid JSON format detected", false);
         return false;
@@ -116,9 +126,15 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
 
     QJsonDocument doc(rootObj);
     QTextStream outStream(&file);
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+
+    // FIX: Enforce uniform UTF-8 file generation across all versions of Qt framework targets
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    outStream.setEncoding(QStringConverter::Utf8);
+#else
     outStream.setCodec("UTF-8");
 #endif
+
+    // Write out the raw text cleanly as Indented JSON
     outStream << doc.toJson(QJsonDocument::Indented);
     outStream.flush();
     file.close();
@@ -140,7 +156,11 @@ bool ChangeLogManager::appendVersionEntry(const QString &v, const QString &d, co
     entry.dateString = d.trimmed();
 
     // Split the flattened string using a safe character boundary mapping (\n)
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    entry.changeItems = joinedChanges.split("\n", Qt::SkipEmptyParts);
+#else
     entry.changeItems = joinedChanges.split("\n", QString::SkipEmptyParts);
+#endif
 
     m_entries.append(entry);
     organizeEntriesByVersion();
@@ -156,7 +176,11 @@ bool ChangeLogManager::commitVersionEntry(int targetIndex, const QString &v, con
 
     m_entries[targetIndex].versionString = v.trimmed();
     m_entries[targetIndex].dateString = d.trimmed();
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    m_entries[targetIndex].changeItems = joinedChanges.split("\n", Qt::SkipEmptyParts);
+#else
     m_entries[targetIndex].changeItems = joinedChanges.split("\n", QString::SkipEmptyParts);
+#endif
 
     organizeEntriesByVersion();
     m_isDirty = true;
