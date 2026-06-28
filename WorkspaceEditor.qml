@@ -5,7 +5,7 @@ import QtQuick.Dialogs 1.3
 
 Rectangle {
     id: editorContainer
-    color: "#11111b" // Deep canvas backdrop
+    color: windowRoot.themeBgDeep
 
     property string workingMode: "CREATE"
     property int selectionPointerIndex: -1
@@ -67,12 +67,12 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Dark Upper Context Operations Bar
+        // Context File Utilities Toolbar Operations Bar
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 48
-            color: "#1e1e2e"
-            border.color: "#313244"
+            color: windowRoot.themeBgCard
+            border.color: windowRoot.themeBorder
             border.width: 1
 
             RowLayout {
@@ -84,24 +84,35 @@ Rectangle {
                 Button {
                     text: "🆕 New Profile"
                     flat: true
-                    contentItem: Text { text: parent.text; color: "#cdd6f4" }
+                    implicitHeight: 38
+                    contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; verticalAlignment: Text.AlignVCenter }
                     onClicked: { BackendEngine.resetWorkspace(); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); }
                 }
                 Button {
                     text: "📁 Load File"
                     flat: true
-                    contentItem: Text { text: parent.text; color: "#cdd6f4" }
+                    implicitHeight: 38
+                    contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; verticalAlignment: Text.AlignVCenter }
                     onClicked: openDialog.open()
                 }
                 Button {
-                    text: "💾 Write Save"
+                    text: "💾 Save"
                     highlighted: BackendEngine.isDirty
+                    implicitHeight: 38
                     background: Rectangle {
-                        color: BackendEngine.isDirty ? "#2ed573" : "#313244"
+                        color: BackendEngine.isDirty ? "#2ed573" : (parent.hovered ? windowRoot.themeBorder : windowRoot.themeBgDeep)
                         radius: 4
                         opacity: BackendEngine.isDirty ? 0.2 : 1.0
+                        border.color: windowRoot.themeBorder
+                        border.width: BackendEngine.isDirty ? 0 : 1
                     }
-                    contentItem: Text { text: parent.text; color: BackendEngine.isDirty ? "#2ed573" : "#cdd6f4"; font.bold: BackendEngine.isDirty }
+                    contentItem: Text {
+                        text: parent.text
+                        color: BackendEngine.isDirty ? "#2ed573" : windowRoot.themeTextMain
+                        font.bold: BackendEngine.isDirty
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                     onClicked: {
                         if (BackendEngine.currentFilePath === "") {
                             saveAsDialog.open()
@@ -113,7 +124,8 @@ Rectangle {
                 Button {
                     text: "💾 Save File As..."
                     flat: true
-                    contentItem: Text { text: parent.text; color: "#cdd6f4" }
+                    implicitHeight: 38
+                    contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; verticalAlignment: Text.AlignVCenter }
                     onClicked: saveAsDialog.open()
                 }
 
@@ -122,8 +134,9 @@ Rectangle {
                 Text {
                     text: "Target Workspace: " + (BackendEngine.currentFilePath || "Unsaved Buffer Instance")
                     font.italic: true
-                    color: "#7f849c"
+                    color: windowRoot.themeTextSub
                     font.pixelSize: 12
+                    Layout.alignment: Qt.AlignVCenter
                 }
             }
         }
@@ -133,11 +146,11 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Left Layout Input Form Control Side
+            // Left Layout Input Controller Side
             Rectangle {
                 SplitView.minimumWidth: 440
                 SplitView.preferredWidth: 480
-                color: "#1e1e2e"
+                color: windowRoot.themeBgCard
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -148,7 +161,7 @@ Rectangle {
                         text: workingMode === "CREATE" ? "➕ Add Document Version" : "📝 Modify Version Node"
                         font.pixelSize: 16
                         font.bold: true
-                        color: "#b4befe"
+                        color: windowRoot.themeAccent
                     }
 
                     RowLayout {
@@ -157,30 +170,30 @@ Rectangle {
                         TextField {
                             id: txtVersion
                             placeholderText: "Version (e.g. 1.0.4)"
-                            color: "#cdd6f4"
-                            placeholderTextColor: "#6c7086"
+                            color: windowRoot.themeTextMain
+                            placeholderTextColor: windowRoot.isDarkTheme ? "#6c7086" : "#a4b0be"
                             Layout.fillWidth: true
-                            background: Rectangle { color: "#11111b"; border.color: parent.activeFocus ? "#b4befe" : "#313244"; radius: 4 }
+                            background: Rectangle { color: windowRoot.themeBgDeep; border.color: parent.activeFocus ? windowRoot.themeAccent : windowRoot.themeBorder; radius: 4 }
                         }
                         TextField {
                             id: txtDate
                             placeholderText: "Date (YYYY-MM-DD)"
                             text: BackendEngine.getSystemDateString()
-                            color: "#cdd6f4"
-                            placeholderTextColor: "#6c7086"
+                            color: windowRoot.themeTextMain
+                            placeholderTextColor: windowRoot.isDarkTheme ? "#6c7086" : "#a4b0be"
                             Layout.preferredWidth: 140
-                            background: Rectangle { color: "#11111b"; border.color: parent.activeFocus ? "#b4befe" : "#313244"; radius: 4 }
+                            background: Rectangle { color: windowRoot.themeBgDeep; border.color: parent.activeFocus ? windowRoot.themeAccent : windowRoot.themeBorder; radius: 4 }
                         }
                     }
 
-                    Text { text: "Manage Changes Staging Stack (" + currentStagingChanges.length + ")"; font.bold: true; font.pixelSize: 11; color: "#a6adc8" }
+                    Text { text: "Manage Changes Staging Stack (" + currentStagingChanges.length + ")"; font.bold: true; font.pixelSize: 11; color: windowRoot.themeTextSub }
 
-                    // Interactive Staging Container Panel
+                    // Interactive Staging Component Back Panel
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        color: "#11111b"
-                        border.color: "#313244"
+                        color: windowRoot.themeBgDeep
+                        border.color: windowRoot.themeBorder
                         radius: 4
                         clip: true
 
@@ -194,9 +207,9 @@ Rectangle {
                             delegate: Rectangle {
                                 width: stagingListView.width
                                 height: 38
-                                color: "#181825"
+                                color: windowRoot.themeBgCard
                                 radius: 4
-                                border.color: "#313244"
+                                border.color: windowRoot.themeBorder
 
                                 RowLayout {
                                     anchors.fill: parent
@@ -204,18 +217,18 @@ Rectangle {
                                     anchors.rightMargin: 6
                                     spacing: 8
 
-                                    Text { text: "•"; font.bold: true; color: "#b4befe"; font.pixelSize: 14 }
+                                    Text { text: "•"; font.bold: true; color: windowRoot.themeAccent; font.pixelSize: 14 }
 
                                     TextField {
                                         text: modelData
                                         Layout.fillWidth: true
                                         font.pixelSize: 13
-                                        color: "#cdd6f4"
+                                        color: windowRoot.themeTextMain
                                         selectByMouse: true
 
                                         background: Rectangle {
                                             color: "transparent"
-                                            border.color: parent.activeFocus ? "#b4befe" : "transparent"
+                                            border.color: parent.activeFocus ? windowRoot.themeAccent : "transparent"
                                             border.width: 1
                                         }
 
@@ -231,7 +244,7 @@ Rectangle {
                                         flat: true
                                         implicitWidth: 28
                                         implicitHeight: 28
-                                        contentItem: Text { text: "✕"; color: "#f38ba8"; font.bold: true; horizontalAlignment: Text.AlignHCenter }
+                                        contentItem: Text { text: "✕"; color: "#ff4757"; font.bold: true; horizontalAlignment: Text.AlignHCenter }
                                         onClicked: removeItemFromBuffer(index)
                                     }
                                 }
@@ -241,7 +254,7 @@ Rectangle {
                         Text {
                             text: "No active changes pushed into this node yet."
                             anchors.centerIn: parent
-                            color: "#585b70"
+                            color: windowRoot.isDarkTheme ? "#585b70" : "#a4b0be"
                             visible: currentStagingChanges.length === 0
                             font.italic: true
                         }
@@ -252,16 +265,16 @@ Rectangle {
                         TextField {
                             id: txtItemEntry
                             placeholderText: "Type bullet description here..."
-                            color: "#cdd6f4"
-                            placeholderTextColor: "#6c7086"
+                            color: windowRoot.themeTextMain
+                            placeholderTextColor: windowRoot.isDarkTheme ? "#6c7086" : "#a4b0be"
                             Layout.fillWidth: true
-                            background: Rectangle { color: "#11111b"; border.color: parent.activeFocus ? "#b4befe" : "#313244"; radius: 4 }
+                            background: Rectangle { color: windowRoot.themeBgDeep; border.color: parent.activeFocus ? windowRoot.themeAccent : windowRoot.themeBorder; radius: 4 }
                             onAccepted: editorContainer.appendItemToBuffer()
                         }
                         Button {
                             text: "➕ Push"
-                            background: Rectangle { color: "#313244"; radius: 4 }
-                            contentItem: Text { text: parent.text; color: "#cdd6f4"; font.bold: true }
+                            background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
+                            contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                             onClicked: editorContainer.appendItemToBuffer()
                         }
                     }
@@ -272,23 +285,26 @@ Rectangle {
                         Button {
                             text: "Clear Fields"
                             Layout.fillWidth: true
-                            background: Rectangle { color: "#313244"; radius: 4 }
-                            contentItem: Text { text: parent.text; color: "#cdd6f4" }
+                            background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
+                            contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                             onClicked: editorContainer.clearFormInput()
                         }
                         Button {
+                            id: injectNodeBtn
                             text: workingMode === "CREATE" ? "Inject Version Node" : "Modify Node Vector"
                             Layout.fillWidth: true
                             enabled: txtVersion.text.trim() !== "" && currentStagingChanges.length > 0
                             background: Rectangle {
-                                color: parent.enabled ? "#b4befe" : "#181825"
+                                color: parent.enabled ? windowRoot.themeAccent : windowRoot.themeBgDeep
                                 radius: 4
+                                border.color: windowRoot.themeBorder
                             }
                             contentItem: Text {
                                 text: parent.text;
-                                color: parent.enabled ? "#11111b" : "#585b70";
+                                color: injectNodeBtn.enabled ? (windowRoot.isDarkTheme ? "#11111b" : "#ffffff") : (windowRoot.isDarkTheme ? "#585b70" : "#a4b0be");
                                 font.bold: true
                                 horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
                             }
                             onClicked: {
                                 var compositeString = currentStagingChanges.join("\n");
@@ -305,10 +321,10 @@ Rectangle {
                 }
             }
 
-            // Right Array Mirror Preview Panel (Dark Vector Cards Stack)
+            // Right Array Mirror Preview Panel (Vector Cards Stack View)
             Rectangle {
                 SplitView.minimumWidth: 400
-                color: "#11111b"
+                color: windowRoot.themeBgDeep
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -322,7 +338,7 @@ Rectangle {
                             text: "📋 Local Memory Nodes Vector (" + BackendEngine.totalVersions + ")"
                             font.pixelSize: 14
                             font.bold: true
-                            color: "#cdd6f4"
+                            color: windowRoot.themeTextMain
                         }
 
                         Item { Layout.fillWidth: true }
@@ -332,7 +348,7 @@ Rectangle {
                             flat: true
                             contentItem: Text {
                                 text: parent.text
-                                color: BackendEngine.totalVersions > 0 ? "#f38ba8" : "#45475a"
+                                color: BackendEngine.totalVersions > 0 ? "#ff4757" : (windowRoot.isDarkTheme ? "#45475a" : "#a4b0be")
                                 font.bold: true
                                 font.pixelSize: 12
                             }
@@ -356,9 +372,9 @@ Rectangle {
                         delegate: Rectangle {
                             width: localMemoryNodesListView.width
                             implicitHeight: innerColumnLayout.height + 20
-                            color: "#1e1e2e"
+                            color: windowRoot.themeBgCard
                             radius: 6
-                            border.color: selectionPointerIndex === index ? "#f9e2af" : "#313244"
+                            border.color: selectionPointerIndex === index ? "#e1b12c" : windowRoot.themeBorder
                             border.width: selectionPointerIndex === index ? 2 : 1
 
                             ColumnLayout {
@@ -371,12 +387,12 @@ Rectangle {
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Text { text: "Version: " + BackendEngine.fetchVersionName(index); font.bold: true; font.pixelSize: 14; color: "#cdd6f4" }
+                                    Text { text: "Version: " + BackendEngine.fetchVersionName(index); font.bold: true; font.pixelSize: 14; color: windowRoot.themeTextMain }
                                     Item { Layout.fillWidth: true }
-                                    Text { text: BackendEngine.fetchVersionDate(index); color: "#9399b2"; font.pixelSize: 12 }
+                                    Text { text: BackendEngine.fetchVersionDate(index); color: windowRoot.themeTextSub; font.pixelSize: 12 }
                                 }
 
-                                Rectangle { Layout.fillWidth: true; height: 1; color: "#313244" }
+                                Rectangle { Layout.fillWidth: true; height: 1; color: windowRoot.themeBorder }
 
                                 Column {
                                     Layout.fillWidth: true
@@ -386,8 +402,8 @@ Rectangle {
                                         RowLayout {
                                             width: parent.width
                                             spacing: 6
-                                            Text { text: "•"; color: "#b4befe" }
-                                            Text { text: modelData; font.pixelSize: 12; color: "#a6adc8"; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                                            Text { text: "•"; color: windowRoot.themeAccent }
+                                            Text { text: modelData; font.pixelSize: 12; color: windowRoot.themeTextSub; Layout.fillWidth: true; wrapMode: Text.Wrap }
                                         }
                                     }
                                 }
@@ -397,14 +413,14 @@ Rectangle {
                                     Item { Layout.fillWidth: true }
                                     Button {
                                         text: "Load Node"
-                                        background: Rectangle { color: "#313244"; radius: 4 }
-                                        contentItem: Text { text: parent.text; color: "#cdd6f4"; font.pixelSize: 11 }
+                                        background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
+                                        contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                         onClicked: editorContainer.loadActiveEntryToForm(index)
                                     }
                                     Button {
                                         text: "Delete Node"
-                                        background: Rectangle { color: "#45475a"; radius: 4 }
-                                        contentItem: Text { text: parent.text; color: "#f38ba8"; font.pixelSize: 11 }
+                                        background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
+                                        contentItem: Text { text: parent.text; color: "#ff4757"; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                                         onClicked: {
                                             BackendEngine.removeVersionEntry(index);
                                             editorContainer.clearFormInput();

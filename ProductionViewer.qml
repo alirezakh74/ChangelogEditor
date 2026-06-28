@@ -4,7 +4,7 @@ import QtQuick.Layouts 1.15
 
 Rectangle {
     id: productionViewerRoot
-    color: "#11111b" // Deep solid dark canvas ground
+    color: windowRoot.themeBgDeep
 
     function synchronizeView() {
         productionModelVisualizer.model = [];
@@ -18,7 +18,7 @@ Rectangle {
 
         Text {
             text: "🔍 Application Changelog Production Render Stack"
-            color: "#cdd6f4"
+            color: windowRoot.themeTextMain
             font.bold: true
             font.pixelSize: 18
         }
@@ -36,9 +36,9 @@ Rectangle {
                 delegate: Rectangle {
                     width: productionModelVisualizer.width - 20
                     implicitHeight: layoutElementContainer.height + 28
-                    color: "#1e1e2e"
+                    color: windowRoot.themeBgCard
                     radius: 8
-                    border.color: "#313244"
+                    border.color: windowRoot.themeBorder
                     border.width: 1
 
                     ColumnLayout {
@@ -55,20 +55,20 @@ Rectangle {
                                 text: "Build Release: v" + modelData.version
                                 font.pixelSize: 15
                                 font.bold: true
-                                color: "#f5e0dc"
+                                color: windowRoot.isDarkTheme ? "#f5e0dc" : "#2f3542"
                             }
                             Item { Layout.fillWidth: true }
                             Text {
                                 text: "📅 Deployment Date: " + modelData.date
                                 font.pixelSize: 12
-                                color: "#9399b2"
+                                color: windowRoot.themeTextSub
                             }
                         }
 
                         Rectangle {
                             Layout.fillWidth: true
                             height: 1
-                            color: "#313244"
+                            color: windowRoot.themeBorder
                         }
 
                         Column {
@@ -80,11 +80,11 @@ Rectangle {
                                 RowLayout {
                                     width: parent.width
                                     spacing: 10
-                                    Text { text: "•"; font.bold: true; color: "#b4befe"; font.pixelSize: 14 }
+                                    Text { text: "•"; font.bold: true; color: windowRoot.themeAccent; font.pixelSize: 14 }
                                     Text {
                                         text: modelData
                                         font.pixelSize: 13
-                                        color: "#a6adc8"
+                                        color: windowRoot.themeTextSub
                                         Layout.fillWidth: true
                                         wrapMode: Text.Wrap
                                     }
