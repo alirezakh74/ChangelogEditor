@@ -81,8 +81,9 @@ Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: 15
                 anchors.rightMargin: 15
+                spacing: 10
 
-                Button { text: "🆕 New Profile"; onClicked: { BackendEngine.resetWorkspace(); editorContainer.clearFormInput(); } flat: true }
+                Button { text: "🆕 New Profile"; onClicked: { BackendEngine.resetWorkspace(); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); } flat: true }
                 Button { text: "📁 Load File"; onClicked: openDialog.open(); flat: true }
                 Button {
                     text: "💾 Write Save"
@@ -112,7 +113,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Left Layout Input Controller
+            // Left Layout Input Controller (Form Field Side)
             Rectangle {
                 SplitView.minimumWidth: 440
                 SplitView.preferredWidth: 480
@@ -191,12 +192,10 @@ Rectangle {
                                             border.width: 1
                                         }
 
-                                        // Applies modifications when Enter/Return key is clicked
                                         onAccepted: {
                                             modifyItemInBuffer(index, text)
-                                            focus = false // Release keyboard focus after entering
+                                            focus = false
                                         }
-                                        // Also falls back to saving changes if clicking completely outside the element
                                         onEditingFinished: modifyItemInBuffer(index, text)
                                     }
 
@@ -265,7 +264,7 @@ Rectangle {
                 }
             }
 
-            // Right Array Mirror Preview Panel
+            // Right Array Mirror Preview Panel (Vector List Side)
             Rectangle {
                 SplitView.minimumWidth: 400
                 color: "#f8f9fa"
@@ -273,11 +272,39 @@ Rectangle {
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 20
+                    spacing: 10
 
-                    Text {
-                        text: "📋 Local Memory Nodes Vector (" + BackendEngine.totalVersions + ")"
-                        font.pixelSize: 14
-                        font.bold: true
+                    // Header Row combining Title and the repositioned Delete All button
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Text {
+                            text: "📋 Local Memory Nodes Vector (" + BackendEngine.totalVersions + ")"
+                            font.pixelSize: 14
+                            font.bold: true
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        // Repositioned: Delete All Nodes Button
+                        Button {
+                            text: "🗑️ Delete All Nodes"
+                            flat: true
+                            Layout.alignment: Qt.AlignVCenter
+                            contentItem: Text {
+                                text: parent.text
+                                color: BackendEngine.totalVersions > 0 ? "#ff4757" : "#a4b0be"
+                                font.bold: true
+                                font.pixelSize: 12
+                            }
+                            enabled: BackendEngine.totalVersions > 0
+                            onClicked: {
+                                BackendEngine.resetWorkspace();
+                                editorContainer.clearFormInput();
+                                editorContainer.refreshVectorList();
+                            }
+                        }
                     }
 
                     ListView {
