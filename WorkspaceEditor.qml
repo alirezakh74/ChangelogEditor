@@ -60,7 +60,6 @@ Rectangle {
     }
 
     function refreshVectorList() {
-        // Explicitly resets and rebinds the view model count to force a UI redraw
         var cachedCount = BackendEngine.totalVersions;
         localMemoryNodesListView.model = 0;
         localMemoryNodesListView.model = cachedCount;
@@ -186,13 +185,18 @@ Rectangle {
                                         color: "#2c3e50"
                                         selectByMouse: true
 
-                                        // Clean up the styling by explicitly making the background border transparent
                                         background: Rectangle {
                                             color: "transparent"
                                             border.color: parent.activeFocus ? "#3498db" : "transparent"
                                             border.width: 1
                                         }
 
+                                        // Applies modifications when Enter/Return key is clicked
+                                        onAccepted: {
+                                            modifyItemInBuffer(index, text)
+                                            focus = false // Release keyboard focus after entering
+                                        }
+                                        // Also falls back to saving changes if clicking completely outside the element
                                         onEditingFinished: modifyItemInBuffer(index, text)
                                     }
 
@@ -254,7 +258,7 @@ Rectangle {
                                 }
 
                                 editorContainer.clearFormInput();
-                                editorContainer.refreshVectorList(); // <-- Forces the vector preview layout to update immediately
+                                editorContainer.refreshVectorList();
                             }
                         }
                     }
@@ -309,7 +313,6 @@ Rectangle {
 
                                 Rectangle { Layout.fillWidth: true; height: 1; color: "#f1f2f6" }
 
-                                // Shows actual bullet formatting inside preview
                                 Column {
                                     Layout.fillWidth: true
                                     spacing: 4
@@ -336,7 +339,7 @@ Rectangle {
                                         onClicked: {
                                             BackendEngine.removeVersionEntry(index);
                                             editorContainer.clearFormInput();
-                                            editorContainer.refreshVectorList(); // <-- Forces layout updates on delete actions too
+                                            editorContainer.refreshVectorList();
                                         }
                                     }
                                 }
@@ -356,7 +359,7 @@ Rectangle {
         onAccepted: {
             BackendEngine.loadFromFile(fileUrl);
             editorContainer.clearFormInput();
-            editorContainer.refreshVectorList(); // Forces refresh upon opening files
+            editorContainer.refreshVectorList();
         }
     }
 
