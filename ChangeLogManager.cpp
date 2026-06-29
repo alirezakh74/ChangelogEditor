@@ -36,8 +36,6 @@ QString ChangeLogManager::getAssetDirectoryPath() const {
     if (m_filePath.isEmpty()) {
         return uploadRoot + "/unsaved_workspace";
     }
-
-    // Generate an isolated sub-sandbox based on file base-name and a path hash
     QString baseName = QFileInfo(m_filePath).baseName();
     QString pathHash = QString(QCryptographicHash::hash(m_filePath.toUtf8(), QCryptographicHash::Md5).toHex().left(6));
     return uploadRoot + "/" + baseName + "_" + pathHash;
@@ -50,6 +48,58 @@ void ChangeLogManager::resetWorkspace() {
     emit entriesChanged();
     emit filePathChanged();
     emit dirtyChanged();
+}
+
+QString ChangeLogManager::convertToJalali(const QString &gregorianDate) const {
+    QStringList parts = gregorianDate.split('-');
+    if (parts.size() != 3) return QString("----/--/--");
+
+    int gy = parts[0].toInt();
+    int gm = parts[1].toInt();
+    int gd = parts[2].toInt();
+
+    int gy_m = gy - 1600;
+    int gm_m = gm - 1;
+    int gd_m = gd - 1;
+
+    long g_day_no = 365 * gy_m + (gy_m + 3) / 4 - (gy_m + 99) / 100 + (gy_m + 399) / 400;
+    for (int i = 0; i < gm_m; ++i) {
+        if (i == 1 && ((gy % 4 == 0 && gy % 100 != 0) || (gy % 400 == 0))) {
+            g_day_no += 29;
+        } else {
+            int days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+            g_day_no += days[i];
+        }
+    }
+    g_day_no += gd_m;
+
+    long j_day_no = g_day_no - 79;
+    long j_np = j_day_no / 12053;
+    j_day_no %= 12053;
+
+    long jy = 979 + 33 * j_np + 4 * (j_day_no / 1461);
+    j_day_no %= 1461;
+
+    if (j_day_no >= 366) {
+        jy += (j_day_no - 1) / 365;
+        j_day_no = (j_day_no - 1) % 365;
+    }
+
+    int jm = 0;
+    int j_days_in_month[] = {31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29};
+    for (int i = 0; i < 12; ++i) {
+        if (j_day_no < j_days_in_month[i]) {
+            jm = i + 1;
+            break;
+        }
+        j_day_no -= j_days_in_month[i];
+    }
+    int jd = j_day_no + 1;
+
+    return QString("%1/%2/%3")
+        .arg(jy)
+        .arg(jm, 2, 10, QChar('0'))
+        .arg(jd, 2, 10, QChar('0'));
 }
 
 bool ChangeLogManager::loadFromFile(const QString &rawPath) {
@@ -91,15 +141,23 @@ bool ChangeLogManager::loadFromFile(const QString &rawPath) {
 
         QJsonArray changesArr = innerObj.value("changes").toArray();
         for (const QJsonValue &val : changesArr) {
-            entry.changeItems.append(val.toString());
+            ChangeItem cItem;
+            if (val.isObject()) {
+                QJsonObject cObj = val.toObject();
+                cItem.text = cObj.value("text").toString();
+                QJsonArray cImgs = cObj.value("images").toArray();
+                for (const QJsonValue &imgVal : cImgs) {
+                    cItem.imagePaths.append(imgVal.toString());
+                }
+            } else {
+                cItem.text = val.toString(); // Fallback backward compatibility layer
+            }
+            entry.changeItems.append(cItem);
         }
 
         QJsonArray imagesArr = innerObj.value("images").toArray();
         for (const QJsonValue &val : imagesArr) {
-            QString pathUrlString = val.toString();
-
-            //  Retain the path data structural reference regardless of physical file state
-            entry.imagePaths.append(pathUrlString);
+            entry.imagePaths.append(val.toString());
         }
         m_entries.append(entry);
     }
@@ -108,7 +166,6 @@ bool ChangeLogManager::loadFromFile(const QString &rawPath) {
     m_filePath = target;
     m_isDirty = false;
 
-    // Sweeps only this specific file's isolated folder environment safely
     cleanOrphanedImages();
 
     emit entriesChanged();
@@ -130,43 +187,55 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
     }
 
     QString oldFilePath = m_filePath;
-
-    // Compute the destination folder
     m_filePath = target;
     QString newAssetDir = QFileInfo(getAssetDirectoryPath()).absoluteFilePath();
-    m_filePath = oldFilePath; // Revert to process data migration
+    m_filePath = oldFilePath;
 
-    // AUTOMATIC ASSET MIGRATION ENGINE
-    // Move referenced images to the new sandboxed asset folder structure securely
     QDir(newAssetDir).mkpath(".");
+
+    // ASSET MIGRATION ENGINE (Now deeply tracks both Version and Child-Description layers)
     for (int i = 0; i < m_entries.size(); ++i) {
+        // Core Version Image Array Migration
         for (int j = 0; j < m_entries[i].imagePaths.size(); ++j) {
             QString currentUrl = m_entries[i].imagePaths[j];
             QString currentNativePath = sanitizeUrlToNativePath(currentUrl);
-            if (QDir::isRelativePath(currentNativePath)) {
-                currentNativePath = QCoreApplication::applicationDirPath() + "/" + currentNativePath;
-            }
+            if (QDir::isRelativePath(currentNativePath)) currentNativePath = QCoreApplication::applicationDirPath() + "/" + currentNativePath;
 
             QFileInfo fileInfo(currentNativePath);
             QString absFilePath = fileInfo.absoluteFilePath();
 
             if (QFile::exists(absFilePath) && !absFilePath.startsWith(newAssetDir)) {
                 QString destinationPath = newAssetDir + "/" + fileInfo.fileName();
-                if (!QFile::exists(destinationPath)) {
-                    QFile::copy(absFilePath, destinationPath);
-                }
+                if (!QFile::exists(destinationPath)) QFile::copy(absFilePath, destinationPath);
                 m_entries[i].imagePaths[j] = "file:///" + QDir::toNativeSeparators(destinationPath);
+            }
+        }
+
+        // Deep Child-Description Image Array Migration
+        for (int j = 0; j < m_entries[i].changeItems.size(); ++j) {
+            for (int k = 0; k < m_entries[i].changeItems[j].imagePaths.size(); ++k) {
+                QString currentUrl = m_entries[i].changeItems[j].imagePaths[k];
+                QString currentNativePath = sanitizeUrlToNativePath(currentUrl);
+                if (QDir::isRelativePath(currentNativePath)) currentNativePath = QCoreApplication::applicationDirPath() + "/" + currentNativePath;
+
+                QFileInfo fileInfo(currentNativePath);
+                QString absFilePath = fileInfo.absoluteFilePath();
+
+                if (QFile::exists(absFilePath) && !absFilePath.startsWith(newAssetDir)) {
+                    QString destinationPath = newAssetDir + "/" + fileInfo.fileName();
+                    if (!QFile::exists(destinationPath)) QFile::copy(absFilePath, destinationPath);
+                    m_entries[i].changeItems[j].imagePaths[k] = "file:///" + QDir::toNativeSeparators(destinationPath);
+                }
             }
         }
     }
 
-    // Purge the temporary workspace scratch folder if migrating out of an unsaved state
     if (oldFilePath.isEmpty()) {
         QString tempUnsavedFolder = QFileInfo(QCoreApplication::applicationDirPath() + "/upload/unsaved_workspace").absoluteFilePath();
         QDir(tempUnsavedFolder).removeRecursively();
     }
 
-    m_filePath = target; // Lock in the new target file path permanently
+    m_filePath = target;
 
     QJsonObject rootObj;
     for (const LogVersionEntry &entry : m_entries) {
@@ -174,8 +243,15 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
         innerObj.insert("date", entry.dateString);
 
         QJsonArray changesArr;
-        for (const QString &item : entry.changeItems) {
-            changesArr.append(item);
+        for (const ChangeItem &item : entry.changeItems) {
+            QJsonObject changeObj;
+            changeObj.insert("text", item.text);
+            QJsonArray subImgs;
+            for (const QString &imgUrl : item.imagePaths) {
+                subImgs.append(imgUrl);
+            }
+            changeObj.insert("images", subImgs);
+            changesArr.append(changeObj);
         }
         innerObj.insert("changes", changesArr);
 
@@ -207,8 +283,6 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
     file.close();
 
     m_isDirty = false;
-
-    // Run clean sweep on the updated local sandbox only
     cleanOrphanedImages();
 
     emit filePathChanged();
@@ -217,18 +291,24 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
     return true;
 }
 
-bool ChangeLogManager::appendVersionEntry(const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages) {
+bool ChangeLogManager::appendVersionEntry(const QString &v, const QString &d, const QVariantList &changesList, const QString &joinedImages) {
     if (v.trimmed().isEmpty()) return false;
 
     LogVersionEntry entry;
     entry.versionString = v.trimmed();
     entry.dateString = d.trimmed();
 
+    for (const QVariant &val : changesList) {
+        ChangeItem cItem;
+        QVariantMap vMap = val.toMap();
+        cItem.text = vMap.value("text").toString().trimmed();
+        cItem.imagePaths = vMap.value("images").toStringList();
+        entry.changeItems.append(cItem);
+    }
+
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    entry.changeItems = joinedChanges.split("\n", Qt::SkipEmptyParts);
     entry.imagePaths = joinedImages.split("\n", Qt::SkipEmptyParts);
 #else
-    entry.changeItems = joinedChanges.split("\n", QString::SkipEmptyParts);
     entry.imagePaths = joinedImages.split("\n", QString::SkipEmptyParts);
 #endif
 
@@ -241,16 +321,24 @@ bool ChangeLogManager::appendVersionEntry(const QString &v, const QString &d, co
     return true;
 }
 
-bool ChangeLogManager::commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages) {
+bool ChangeLogManager::commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QVariantList &changesList, const QString &joinedImages) {
     if (targetIndex < 0 || targetIndex >= m_entries.size() || v.trimmed().isEmpty()) return false;
 
     m_entries[targetIndex].versionString = v.trimmed();
     m_entries[targetIndex].dateString = d.trimmed();
+    m_entries[targetIndex].changeItems.clear();
+
+    for (const QVariant &val : changesList) {
+        ChangeItem cItem;
+        QVariantMap vMap = val.toMap();
+        cItem.text = vMap.value("text").toString().trimmed();
+        cItem.imagePaths = vMap.value("images").toStringList();
+        m_entries[targetIndex].changeItems.append(cItem);
+    }
+
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    m_entries[targetIndex].changeItems = joinedChanges.split("\n", Qt::SkipEmptyParts);
     m_entries[targetIndex].imagePaths = joinedImages.split("\n", Qt::SkipEmptyParts);
 #else
-    m_entries[targetIndex].changeItems = joinedChanges.split("\n", QString::SkipEmptyParts);
     m_entries[targetIndex].imagePaths = joinedImages.split("\n", QString::SkipEmptyParts);
 #endif
 
@@ -277,7 +365,15 @@ QVariantList ChangeLogManager::fetchSerializedEntries() const {
         QVariantMap map;
         map.insert("version", entry.versionString);
         map.insert("date", entry.dateString);
-        map.insert("changes", entry.changeItems);
+
+        QVariantList changesList;
+        for (const ChangeItem &cItem : entry.changeItems) {
+            QVariantMap cMap;
+            cMap.insert("text", cItem.text);
+            cMap.insert("images", cItem.imagePaths);
+            changesList.append(cMap);
+        }
+        map.insert("changes", changesList);
         map.insert("images", entry.imagePaths);
         list.append(map);
     }
@@ -292,8 +388,17 @@ QString ChangeLogManager::fetchVersionDate(int index) const {
     return (index >= 0 && index < m_entries.size()) ? m_entries[index].dateString : "";
 }
 
-QString ChangeLogManager::fetchVersionChangesJoined(int index) const {
-    return (index >= 0 && index < m_entries.size()) ? m_entries[index].changeItems.join("\n") : "";
+QVariantList ChangeLogManager::fetchVersionChangesList(int index) const {
+    QVariantList list;
+    if (index >= 0 && index < m_entries.size()) {
+        for (const ChangeItem &item : m_entries[index].changeItems) {
+            QVariantMap map;
+            map.insert("text", item.text);
+            map.insert("images", item.imagePaths);
+            list.append(map);
+        }
+    }
+    return list;
 }
 
 QString ChangeLogManager::fetchVersionImagesJoined(int index) const {
@@ -327,14 +432,9 @@ QString ChangeLogManager::copyImageToUploads(const QString &sourceUrl) {
 
     QString uploadDirPath = getAssetDirectoryPath();
     QDir uploadDir(uploadDirPath);
-    if (!uploadDir.exists()) {
-        uploadDir.mkpath(".");
-    }
+    if (!uploadDir.exists()) uploadDir.mkpath(".");
 
     QFileInfo fileInfo(srcPath);
-
-    // Using QUuid ensures every single image gets a unique identifier,
-    // completely eliminating batch-processing filename collisions.
     QString uniqueId = QUuid::createUuid().toString(QUuid::Id128).left(8);
     QString uniqueName = uniqueId + "_" + fileInfo.fileName();
     QString targetFilePath = uploadDirPath + "/" + uniqueName;
@@ -353,9 +453,13 @@ void ChangeLogManager::cleanOrphanedImages() {
         for (const QString &imgUrl : entry.imagePaths) {
             activePaths.append(QFileInfo(sanitizeUrlToNativePath(imgUrl)).absoluteFilePath());
         }
+        for (const ChangeItem &cItem : entry.changeItems) {
+            for (const QString &imgUrl : cItem.imagePaths) {
+                activePaths.append(QFileInfo(sanitizeUrlToNativePath(imgUrl)).absoluteFilePath());
+            }
+        }
     }
 
-    // Focuses the file-scanning loop tightly onto the current project folder path only
     QString uploadDirPath = QFileInfo(getAssetDirectoryPath()).absoluteFilePath();
     QDir uploadDir(uploadDirPath);
     if (!uploadDir.exists()) return;
@@ -370,8 +474,7 @@ void ChangeLogManager::cleanOrphanedImages() {
             deleteCount++;
         }
     }
-
     if (deleteCount > 0) {
-        qDebug() << "Garbage collection cleaned up" << deleteCount << "unreferenced images from this workspace.";
+        qDebug() << "Garbage collection cleaned up" << deleteCount << "unreferenced images.";
     }
 }

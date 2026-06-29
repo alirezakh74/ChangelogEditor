@@ -8,7 +8,7 @@ Window {
     width: 1200
     height: 850
     visible: true
-    title: "Changelog Workspace Pro v1.0.1"
+    title: "Changelog Workspace Pro v1.0.2"
 
     // Global State management property for Theme switching
     property bool isDarkTheme: true

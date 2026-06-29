@@ -6,11 +6,16 @@
 #include <QStringList>
 #include <QVariantList>
 
+struct ChangeItem {
+    QString text;
+    QStringList imagePaths;
+};
+
 struct LogVersionEntry {
     QString versionString;
     QString dateString;
-    QStringList changeItems;
-    QStringList imagePaths;
+    QList<ChangeItem> changeItems;
+    QStringList imagePaths; // Version-level attachments (like before)
 };
 
 class ChangeLogManager : public QObject
@@ -32,17 +37,18 @@ public:
     Q_INVOKABLE bool saveToFile();
     Q_INVOKABLE bool saveAsFile(const QString &rawPath);
 
-    Q_INVOKABLE bool commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages);
-    Q_INVOKABLE bool appendVersionEntry(const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages);
+    Q_INVOKABLE bool commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QVariantList &changesList, const QString &joinedImages);
+    Q_INVOKABLE bool appendVersionEntry(const QString &v, const QString &d, const QVariantList &changesList, const QString &joinedImages);
     Q_INVOKABLE void removeVersionEntry(int index);
 
     Q_INVOKABLE QVariantList fetchSerializedEntries() const;
     Q_INVOKABLE QString fetchVersionName(int index) const;
     Q_INVOKABLE QString fetchVersionDate(int index) const;
-    Q_INVOKABLE QString fetchVersionChangesJoined(int index) const;
+    Q_INVOKABLE QVariantList fetchVersionChangesList(int index) const;
     Q_INVOKABLE QString fetchVersionImagesJoined(int index) const;
 
     Q_INVOKABLE QString getSystemDateString() const;
+    Q_INVOKABLE QString convertToJalali(const QString &gregorianDate) const;
     Q_INVOKABLE QString copyImageToUploads(const QString &sourceUrl);
 
     Q_INVOKABLE void cleanOrphanedImages();
@@ -56,8 +62,6 @@ signals:
 private:
     void organizeEntriesByVersion();
     QString sanitizeUrlToNativePath(const QString &rawPath) const;
-
-    // Generates a deterministic, isolated sandbox folder path for the current project
     QString getAssetDirectoryPath() const;
 
     QString m_filePath;
