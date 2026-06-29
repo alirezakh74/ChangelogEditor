@@ -96,13 +96,9 @@ bool ChangeLogManager::loadFromFile(const QString &rawPath) {
         QJsonArray imagesArr = innerObj.value("images").toArray();
         for (const QJsonValue &val : imagesArr) {
             QString pathUrlString = val.toString();
-            QString checkingNativePath = sanitizeUrlToNativePath(pathUrlString);
-            if (QDir::isRelativePath(checkingNativePath)) {
-                checkingNativePath = QCoreApplication::applicationDirPath() + "/" + checkingNativePath;
-            }
-            if (QFile::exists(checkingNativePath)) {
-                entry.imagePaths.append(pathUrlString);
-            }
+
+            //  Retain the path data structural reference regardless of physical file state
+            entry.imagePaths.append(pathUrlString);
         }
         m_entries.append(entry);
     }
