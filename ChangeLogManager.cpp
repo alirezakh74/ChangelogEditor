@@ -11,7 +11,8 @@
 #include <algorithm>
 #include <QCoreApplication>
 #include <QFileInfo>
-#include <QCryptographicHash> // Added for collision-free path hashing
+#include <QCryptographicHash>
+#include <QUuid>
 
 ChangeLogManager::ChangeLogManager(QObject *parent) : QObject(parent) {}
 
@@ -331,7 +332,11 @@ QString ChangeLogManager::copyImageToUploads(const QString &sourceUrl) {
     }
 
     QFileInfo fileInfo(srcPath);
-    QString uniqueName = QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + fileInfo.fileName();
+
+    // Using QUuid ensures every single image gets a unique identifier,
+    // completely eliminating batch-processing filename collisions.
+    QString uniqueId = QUuid::createUuid().toString(QUuid::Id128).left(8);
+    QString uniqueName = uniqueId + "_" + fileInfo.fileName();
     QString targetFilePath = uploadDirPath + "/" + uniqueName;
 
     if (QFile::copy(srcPath, targetFilePath)) {

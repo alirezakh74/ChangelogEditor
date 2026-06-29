@@ -38,7 +38,6 @@ Rectangle {
     function removeImageFromBuffer(idx) {
         var imgs = currentStagingImages;
         if (idx >= 0 && idx < imgs.length) {
-            // Transactional state updates only. Disk mutations are handled safely by C++ GC upon save/load.
             imgs.splice(idx, 1);
             currentStagingImages = [...imgs];
         }
@@ -85,7 +84,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Toolbar Operations
+        // Context File Utilities Toolbar Operations Bar
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 48
@@ -104,7 +103,11 @@ Rectangle {
                     flat: true
                     implicitHeight: 38
                     contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; verticalAlignment: Text.AlignVCenter }
-                    onClicked: { BackendEngine.resetWorkspace(); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); }
+                    onClicked: {
+                        BackendEngine.resetWorkspace();
+                        editorContainer.clearFormInput();
+                        editorContainer.refreshVectorList();
+                    }
                 }
                 Button {
                     text: "📁 Load File"
@@ -159,14 +162,15 @@ Rectangle {
             }
         }
 
+        // Workspace Working Split Layout
         SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Left Panel Input Controller Side
+            // Left Layout Input Controller Side
             Rectangle {
-                SplitView.minimumWidth: 460
-                SplitView.preferredWidth: 500
+                SplitView.minimumWidth: 440
+                SplitView.preferredWidth: 480
                 color: windowRoot.themeBgCard
 
                 ColumnLayout {
@@ -205,6 +209,7 @@ Rectangle {
 
                     Text { text: "Manage Changes Staging Stack (" + currentStagingChanges.length + ")"; font.bold: true; font.pixelSize: 11; color: windowRoot.themeTextSub }
 
+                    // Interactive Staging Component Back Panel
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -241,8 +246,17 @@ Rectangle {
                                         font.pixelSize: 13
                                         color: windowRoot.themeTextMain
                                         selectByMouse: true
-                                        background: Rectangle { color: "transparent"; border.color: parent.activeFocus ? windowRoot.themeAccent : "transparent"; border.width: 1 }
-                                        onAccepted: { modifyItemInBuffer(index, text); focus = false; }
+
+                                        background: Rectangle {
+                                            color: "transparent"
+                                            border.color: parent.activeFocus ? windowRoot.themeAccent : "transparent"
+                                            border.width: 1
+                                        }
+
+                                        onAccepted: {
+                                            modifyItemInBuffer(index, text)
+                                            focus = false
+                                        }
                                         onEditingFinished: modifyItemInBuffer(index, text)
                                     }
 
@@ -286,71 +300,96 @@ Rectangle {
                         }
                     }
 
-                    Text { text: "Attached Media Assets (" + currentStagingImages.length + ")"; font.bold: true; font.pixelSize: 11; color: windowRoot.themeTextSub }
+                    // IMAGES MANAGEMENT SECTION
+                    Text { text: "Manage Attached Media Assets (" + currentStagingImages.length + ")"; font.bold: true; font.pixelSize: 11; color: windowRoot.themeTextSub }
 
-                    RowLayout {
+                    Rectangle {
                         Layout.fillWidth: true
-                        spacing: 10
+                        Layout.preferredHeight: 92
+                        color: windowRoot.themeBgDeep
+                        border.color: windowRoot.themeBorder
+                        radius: 4
+                        clip: true
 
-                        Button {
-                            text: "🖼️ Attach Images"
-                            Layout.preferredHeight: 36
-                            background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
-                            contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                            onClicked: imagePickerDialog.open()
-                        }
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            spacing: 8
 
-                        ScrollView {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 64
-                            ScrollBar.vertical.policy: ScrollBar.AlwaysOff
-                            ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+                            Button {
+                                text: "📷\nAttach"
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 68
+                                background: Rectangle { color: windowRoot.themeBgCard; radius: 4; border.color: windowRoot.themeBorder }
+                                contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                onClicked: imagePickerDialog.open()
+                            }
 
-                            RowLayout {
+                            ListView {
+                                id: stagingImagesListView
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                orientation: ListView.Horizontal
+                                model: currentStagingImages
                                 spacing: 8
-                                Repeater {
-                                    model: currentStagingImages
-                                    Rectangle {
-                                        id: stagingImageWrapper
-                                        width: 60; height: 60
-                                        color: windowRoot.themeBgDeep
-                                        border.color: windowRoot.themeBorder
-                                        radius: 4
+                                clip: true
 
-                                        // Explicitly capture index context to avoid shadowing bugs
-                                        property int itemIndex: index
+                                delegate: Rectangle {
+                                    width: 78
+                                    height: 78
+                                    color: windowRoot.themeBgCard
+                                    radius: 4
+                                    border.color: windowRoot.themeBorder
 
-                                        Image {
-                                            anchors.fill: parent
-                                            anchors.margins: 2
-                                            source: modelData
-                                            fillMode: Image.PreserveAspectCrop
-                                            clip: true
-                                        }
+                                    Image {
+                                        id: stageImg
+                                        anchors.fill: parent
+                                        anchors.margins: 2
+                                        source: modelData
+                                        fillMode: Image.PreserveAspectCrop
 
                                         MouseArea {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: lightboxPopup.openGallery(editorContainer.currentStagingImages, stagingImageWrapper.itemIndex)
+                                            onClicked: {
+                                                imagePopupOverlay.imageList = currentStagingImages
+                                                imagePopupOverlay.currentIndex = index
+                                                imagePopupOverlay.visible = true
+                                            }
                                         }
 
                                         Rectangle {
-                                            width: 16; height: 16; radius: 8
-                                            color: "#ff4757"
-                                            anchors.top: parent.top
-                                            anchors.right: parent.right
-                                            anchors.margins: -4
-                                            z: 10
-                                            Text { text: "×"; color: "white"; font.bold: true; font.pixelSize: 12; anchors.centerIn: parent }
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: removeImageFromBuffer(stagingImageWrapper.itemIndex)
-                                            }
+                                            anchors.fill: parent
+                                            color: windowRoot.themeBgDeep
+                                            visible: stageImg.status === Image.Error
+                                            Text { anchors.centerIn: parent; text: "⚠️ Missing"; color: "#ff4757"; font.pixelSize: 9; font.bold: true }
                                         }
+                                    }
+
+                                    Button {
+                                        text: "✕"
+                                        anchors.top: parent.top
+                                        anchors.right: parent.right
+                                        anchors.margins: 3
+                                        implicitWidth: 18
+                                        implicitHeight: 18
+                                        z: 10
+                                        background: Rectangle { color: "#ff4757"; radius: 9 }
+                                        contentItem: Text { text: "✕"; color: "#ffffff"; font.bold: true; font.pixelSize: 9; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                        onClicked: removeImageFromBuffer(index)
                                     }
                                 }
                             }
+                        }
+
+                        Text {
+                            text: "No images attached to this version yet."
+                            anchors.centerIn: parent
+                            anchors.leftMargin: 80
+                            color: windowRoot.isDarkTheme ? "#585b70" : "#a4b0be"
+                            visible: currentStagingImages.length === 0
+                            font.italic: true
+                            font.pixelSize: 12
                         }
                     }
 
@@ -369,19 +408,25 @@ Rectangle {
                             text: workingMode === "CREATE" ? "Inject Version Node" : "Modify Node Vector"
                             Layout.fillWidth: true
                             enabled: txtVersion.text.trim() !== "" && currentStagingChanges.length > 0
-                            background: Rectangle { color: parent.enabled ? windowRoot.themeAccent : windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
+                            background: Rectangle {
+                                color: parent.enabled ? windowRoot.themeAccent : windowRoot.themeBgDeep
+                                radius: 4
+                                border.color: windowRoot.themeBorder
+                            }
                             contentItem: Text {
                                 text: parent.text;
                                 color: injectNodeBtn.enabled ? (windowRoot.isDarkTheme ? "#11111b" : "#ffffff") : (windowRoot.isDarkTheme ? "#585b70" : "#a4b0be");
-                                font.bold: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                             }
                             onClicked: {
                                 var compositeString = currentStagingChanges.join("\n");
-                                var compositeImagesString = currentStagingImages.join("\n");
+                                var compositeImages = currentStagingImages.join("\n");
+
                                 if (workingMode === "CREATE") {
-                                    BackendEngine.appendVersionEntry(txtVersion.text, txtDate.text, compositeString, compositeImagesString);
+                                    BackendEngine.appendVersionEntry(txtVersion.text, txtDate.text, compositeString, compositeImages);
                                 } else {
-                                    BackendEngine.commitVersionEntry(selectionPointerIndex, txtVersion.text, txtDate.text, compositeString, compositeImagesString);
+                                    BackendEngine.commitVersionEntry(selectionPointerIndex, txtVersion.text, txtDate.text, compositeString, compositeImages);
                                 }
                                 editorContainer.clearFormInput();
                                 editorContainer.refreshVectorList();
@@ -391,7 +436,7 @@ Rectangle {
                 }
             }
 
-            // Right Panel (Preview Saved Node Cards Container)
+            // Right Array Mirror Preview Panel (Vector Cards Stack View)
             Rectangle {
                 SplitView.minimumWidth: 400
                 color: windowRoot.themeBgDeep
@@ -403,14 +448,31 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "📋 Local Memory Nodes Vector (" + BackendEngine.totalVersions + ")"; font.pixelSize: 14; font.bold: true; color: windowRoot.themeTextMain }
+
+                        Text {
+                            text: "📋 Local Memory Nodes Vector (" + BackendEngine.totalVersions + ")"
+                            font.pixelSize: 14
+                            font.bold: true
+                            color: windowRoot.themeTextMain
+                        }
+
                         Item { Layout.fillWidth: true }
+
                         Button {
                             text: "🗑️ Delete All Nodes"
                             flat: true
-                            contentItem: Text { text: parent.text; color: BackendEngine.totalVersions > 0 ? "#ff4757" : (windowRoot.isDarkTheme ? "#45475a" : "#a4b0be"); font.bold: true; font.pixelSize: 12 }
+                            contentItem: Text {
+                                text: parent.text
+                                color: BackendEngine.totalVersions > 0 ? "#ff4757" : (windowRoot.isDarkTheme ? "#45475a" : "#a4b0be")
+                                font.bold: true
+                                font.pixelSize: 12
+                            }
                             enabled: BackendEngine.totalVersions > 0
-                            onClicked: { BackendEngine.resetWorkspace(); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); }
+                            onClicked: {
+                                BackendEngine.resetWorkspace();
+                                editorContainer.clearFormInput();
+                                editorContainer.refreshVectorList();
+                            }
                         }
                     }
 
@@ -423,7 +485,7 @@ Rectangle {
                         model: BackendEngine.totalVersions
 
                         delegate: Rectangle {
-                            id: versionCardNode
+                            id: localNodeCard
                             width: localMemoryNodesListView.width
                             implicitHeight: innerColumnLayout.height + 20
                             color: windowRoot.themeBgCard
@@ -431,7 +493,8 @@ Rectangle {
                             border.color: selectionPointerIndex === index ? "#e1b12c" : windowRoot.themeBorder
                             border.width: selectionPointerIndex === index ? 2 : 1
 
-                            property int cardRecordIndex: index
+                            // FIXED: Explicit unshadowed version node index holder
+                            property int versionIndex: index
 
                             ColumnLayout {
                                 id: innerColumnLayout
@@ -443,9 +506,9 @@ Rectangle {
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Text { text: "Version: " + BackendEngine.fetchVersionName(cardRecordIndex); font.bold: true; font.pixelSize: 14; color: windowRoot.themeTextMain }
+                                    Text { text: "Version: " + BackendEngine.fetchVersionName(localNodeCard.versionIndex); font.bold: true; font.pixelSize: 14; color: windowRoot.themeTextMain }
                                     Item { Layout.fillWidth: true }
-                                    Text { text: BackendEngine.fetchVersionDate(cardRecordIndex); color: windowRoot.themeTextSub; font.pixelSize: 12 }
+                                    Text { text: BackendEngine.fetchVersionDate(localNodeCard.versionIndex); color: windowRoot.themeTextSub; font.pixelSize: 12 }
                                 }
 
                                 Rectangle { Layout.fillWidth: true; height: 1; color: windowRoot.themeBorder }
@@ -454,38 +517,54 @@ Rectangle {
                                     Layout.fillWidth: true
                                     spacing: 4
                                     Repeater {
-                                        model: BackendEngine.fetchVersionChangesJoined(versionCardNode.cardRecordIndex).split("\n")
+                                        model: BackendEngine.fetchVersionChangesJoined(localNodeCard.versionIndex).split("\n")
                                         RowLayout {
-                                            width: parent.width; spacing: 6
+                                            width: parent.width
+                                            spacing: 6
                                             Text { text: "•"; color: windowRoot.themeAccent }
                                             Text { text: modelData; font.pixelSize: 12; color: windowRoot.themeTextSub; Layout.fillWidth: true; wrapMode: Text.Wrap }
                                         }
                                     }
                                 }
 
+                                // Mirror Preview Mini Attached Images Inline Row
                                 Flow {
-                                    id: savedCardImagesFlow
+                                    id: previewImagesFlow
                                     Layout.fillWidth: true
                                     spacing: 6
-                                    visible: BackendEngine.fetchVersionImagesJoined(versionCardNode.cardRecordIndex) !== ""
 
-                                    // Calculate array once at layout scope level
-                                    property var imageArray: BackendEngine.fetchVersionImagesJoined(versionCardNode.cardRecordIndex).split("\n")
+                                    // FIXED: Cache the correct split array inside the flow container safely
+                                    property var nodeImagesList: {
+                                        var rawStr = BackendEngine.fetchVersionImagesJoined(localNodeCard.versionIndex);
+                                        return (rawStr.trim() !== "") ? rawStr.split("\n") : [];
+                                    }
+                                    visible: nodeImagesList.length > 0
 
                                     Repeater {
-                                        model: savedCardImagesFlow.imageArray
-                                        Rectangle {
-                                            id: savedImageThumbnailWrapper
-                                            width: 40; height: 40; radius: 3; color: windowRoot.themeBgDeep; border.color: windowRoot.themeBorder
-
-                                            property int thumbIndex: index
-
-                                            Image { anchors.fill: parent; anchors.margins: 1; source: modelData; fillMode: Image.PreserveAspectCrop; clip: true }
+                                        model: previewImagesFlow.nodeImagesList
+                                        Image {
+                                            id: previewNodeImg
+                                            source: modelData
+                                            width: 44
+                                            height: 44
+                                            fillMode: Image.PreserveAspectCrop
 
                                             MouseArea {
                                                 anchors.fill: parent
                                                 cursorShape: Qt.PointingHandCursor
-                                                onClicked: lightboxPopup.openGallery(savedCardImagesFlow.imageArray, savedImageThumbnailWrapper.thumbIndex)
+                                                onClicked: {
+                                                    // FIXED: Safely maps parameters using unshadowed layout scopes
+                                                    imagePopupOverlay.imageList = previewImagesFlow.nodeImagesList;
+                                                    imagePopupOverlay.currentIndex = index;
+                                                    imagePopupOverlay.visible = true;
+                                                }
+                                            }
+
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                color: windowRoot.themeBgDeep
+                                                visible: previewNodeImg.status === Image.Error
+                                                Text { anchors.centerIn: parent; text: "⚠️"; color: "#ff4757"; font.pixelSize: 10 }
                                             }
                                         }
                                     }
@@ -498,13 +577,17 @@ Rectangle {
                                         text: "Load Node"
                                         background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
                                         contentItem: Text { text: parent.text; color: windowRoot.themeTextMain; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                                        onClicked: editorContainer.loadActiveEntryToForm(cardRecordIndex)
+                                        onClicked: editorContainer.loadActiveEntryToForm(localNodeCard.versionIndex)
                                     }
                                     Button {
                                         text: "Delete Node"
                                         background: Rectangle { color: windowRoot.themeBgDeep; radius: 4; border.color: windowRoot.themeBorder }
                                         contentItem: Text { text: parent.text; color: "#ff4757"; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                                        onClicked: { BackendEngine.removeVersionEntry(cardRecordIndex); editorContainer.clearFormInput(); editorContainer.refreshVectorList(); }
+                                        onClicked: {
+                                            BackendEngine.removeVersionEntry(localNodeCard.versionIndex);
+                                            editorContainer.clearFormInput();
+                                            editorContainer.refreshVectorList();
+                                        }
                                     }
                                 }
                             }
@@ -520,95 +603,87 @@ Rectangle {
 
     FileDialog {
         id: imagePickerDialog
-        title: "Select Changelog Images Asset Elements"
-        nameFilters: ["Image files (*.png *.jpg *.jpeg)"]
-        selectMultiple: true
+        title: "Attach Workspace Resource Images"
+        nameFilters: ["Image Files (*.png *.jpg *.jpeg *.bmp)"]
         selectExisting: true
+        selectMultiple: true
         onAccepted: {
-            var items = currentStagingImages;
-            for (var i = 0; i < fileUrls.length; i++) {
-                var uploadedUrlPath = BackendEngine.copyImageToUploads(fileUrls[i]);
-                if (uploadedUrlPath !== "") {
-                    items.push(uploadedUrlPath);
+            var currentList = editorContainer.currentStagingImages;
+            for (var i = 0; i < fileUrls.length; ++i) {
+                var sandboxedUrl = BackendEngine.copyImageToUploads(fileUrls[i]);
+                if (sandboxedUrl && sandboxedUrl !== "") {
+                    currentList.push(sandboxedUrl);
                 }
             }
-            currentStagingImages = [...items];
+            editorContainer.currentStagingImages = [...currentList];
         }
     }
 
-    // High-Resolution Lightbox Viewer Popup Overlay
+    // Pop-up Media Viewer layout
     Rectangle {
-        id: lightboxPopup
+        id: imagePopupOverlay
         anchors.fill: parent
-        color: "#f30b0b14"
+        color: "#f0000000"
         visible: false
-        z: 50000
+        z: 99999
 
         property var imageList: []
-        property int activeIndex: 0
+        property int currentIndex: 0
 
-        function openGallery(imagesArray, startingIndex) {
-            imageList = imagesArray;
-            activeIndex = startingIndex;
-            visible = true;
-        }
+        MouseArea { anchors.fill: parent }
 
-        MouseArea { anchors.fill: parent; propagateComposedEvents: false }
+        Item {
+            anchors.fill: parent
+            anchors.margins: 30
 
-        Image {
-            id: targetFullImage
-            anchors.centerIn: parent
-            width: parent.width * 0.85
-            height: parent.height * 0.78
-            source: lightboxPopup.imageList.length > 0 ? lightboxPopup.imageList[lightboxPopup.activeIndex] : ""
-            fillMode: Image.PreserveAspectFit
-            asynchronous: true
-        }
+            Button {
+                text: "✕ Close Preview"
+                anchors.top: parent.top
+                anchors.right: parent.right
+                z: 10
+                background: Rectangle { color: "#2f3542"; radius: 4; border.color: "#747d8c" }
+                contentItem: Text { text: parent.text; color: "#ffffff"; font.bold: true; padding: 8 }
+                onClicked: imagePopupOverlay.visible = false
+            }
 
-        // Left Navigation Arrow Button
-        Button {
-            anchors.left: parent.left
-            anchors.leftMargin: 25
-            anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: 50; implicitHeight: 50
-            visible: lightboxPopup.activeIndex > 0
-            background: Rectangle { color: parent.hovered ? "#313244" : "#1e1e2e"; radius: 25; border.color: "#45475a"; border.width: 1 }
-            contentItem: Text { text: "◀"; color: "white"; font.pixelSize: 18; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-            onClicked: lightboxPopup.activeIndex--
-        }
+            RowLayout {
+                anchors.fill: parent
+                anchors.topMargin: 60
+                spacing: 20
 
-        // Right Navigation Arrow Button
-        Button {
-            anchors.right: parent.right
-            anchors.rightMargin: 25
-            anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: 50; implicitHeight: 50
-            visible: lightboxPopup.activeIndex < lightboxPopup.imageList.length - 1
-            background: Rectangle { color: parent.hovered ? "#313244" : "#1e1e2e"; radius: 25; border.color: "#45475a"; border.width: 1 }
-            contentItem: Text { text: "▶"; color: "white"; font.pixelSize: 18; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-            onClicked: lightboxPopup.activeIndex++
-        }
+                Button {
+                    text: "◀"
+                    Layout.preferredWidth: 55
+                    Layout.preferredHeight: 55
+                    visible: imagePopupOverlay.currentIndex > 0
+                    background: Rectangle { color: "#2f3542"; radius: 28; border.color: "#747d8c"; opacity: parent.hovered ? 1.0 : 0.7 }
+                    contentItem: Text { text: parent.text; color: "#ffffff"; font.bold: true; font.pixelSize: 20; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    onClicked: if (imagePopupOverlay.currentIndex > 0) imagePopupOverlay.currentIndex--
+                }
 
-        // Close Lightbox Button
-        Button {
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.margins: 25
-            implicitWidth: 44; implicitHeight: 44
-            background: Rectangle { color: parent.hovered ? "#ff4757" : "#1e1e2e"; radius: 22; border.color: parent.hovered ? "transparent" : "#45475a" }
-            contentItem: Text { text: "✕"; color: "white"; font.bold: true; font.pixelSize: 16; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-            onClicked: lightboxPopup.visible = false
-        }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: "transparent"
+                    clip: true
 
-        // Progress Label
-        Text {
-            text: (lightboxPopup.activeIndex + 1) + " / " + lightboxPopup.imageList.length
-            color: "#a6adc8"
-            font.pixelSize: 14
-            font.bold: true
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 30
-            anchors.horizontalCenter: parent.horizontalCenter
+                    Image {
+                        anchors.fill: parent
+                        source: (imagePopupOverlay.imageList && imagePopupOverlay.imageList.length > imagePopupOverlay.currentIndex) ? imagePopupOverlay.imageList[imagePopupOverlay.currentIndex] : ""
+                        fillMode: Image.PreserveAspectFit
+                    }
+                }
+
+                Button {
+                    text: "▶"
+                    Layout.preferredWidth: 55
+                    Layout.preferredHeight: 55
+                    visible: imagePopupOverlay.currentIndex < (imagePopupOverlay.imageList.length - 1)
+                    background: Rectangle { color: "#2f3542"; radius: 28; border.color: "#747d8c"; opacity: parent.hovered ? 1.0 : 0.7 }
+                    contentItem: Text { text: parent.text; color: "#ffffff"; font.bold: true; font.pixelSize: 20; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    onClicked: if (imagePopupOverlay.currentIndex < imagePopupOverlay.imageList.length - 1) imagePopupOverlay.currentIndex++
+                }
+            }
         }
     }
 }
