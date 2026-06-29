@@ -10,7 +10,7 @@ struct LogVersionEntry {
     QString versionString;
     QString dateString;
     QStringList changeItems;
-    QStringList imagePaths; // Added to store multi-image asset targets
+    QStringList imagePaths; // Tracks matching upload image file assets natively
 };
 
 class ChangeLogManager : public QObject
@@ -32,7 +32,7 @@ public:
     Q_INVOKABLE bool saveToFile();
     Q_INVOKABLE bool saveAsFile(const QString &rawPath);
 
-    // Primitive value passing updated to handle paired image sets
+    // Synchronized to support standard 4-argument frontend entries payload structures
     Q_INVOKABLE bool commitVersionEntry(int targetIndex, const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages);
     Q_INVOKABLE bool appendVersionEntry(const QString &v, const QString &d, const QString &joinedChanges, const QString &joinedImages);
     Q_INVOKABLE void removeVersionEntry(int index);
@@ -41,7 +41,7 @@ public:
     Q_INVOKABLE QString fetchVersionName(int index) const;
     Q_INVOKABLE QString fetchVersionDate(int index) const;
     Q_INVOKABLE QString fetchVersionChangesJoined(int index) const;
-    Q_INVOKABLE QString fetchVersionImagesJoined(int index) const; // Added descriptor helper
+    Q_INVOKABLE QString fetchVersionImagesJoined(int index) const; // Exposed interface for image array synchronization
 
     Q_INVOKABLE QString getSystemDateString() const;
     Q_INVOKABLE QString copyImageToUploads(const QString &sourceUrl);

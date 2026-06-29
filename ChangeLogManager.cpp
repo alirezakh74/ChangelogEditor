@@ -80,12 +80,20 @@ bool ChangeLogManager::loadFromFile(const QString &rawPath) {
             entry.changeItems.append(val.toString());
         }
 
-        // Parse images structural data back out cleanly
+        // LOAD-TIME VALIDATION FILTERING: Skips paths if files were deleted without saving JSON
         QJsonArray imagesArr = innerObj.value("images").toArray();
         for (const QJsonValue &val : imagesArr) {
-            entry.imagePaths.append(val.toString());
-        }
+            QString pathUrlString = val.toString();
+            QString checkingNativePath = sanitizeUrlToNativePath(pathUrlString);
 
+            if (QDir::isRelativePath(checkingNativePath)) {
+                checkingNativePath = QCoreApplication::applicationDirPath() + "/" + checkingNativePath;
+            }
+
+            if (QFile::exists(checkingNativePath)) {
+                entry.imagePaths.append(pathUrlString);
+            }
+        }
         m_entries.append(entry);
     }
 
@@ -122,10 +130,9 @@ bool ChangeLogManager::saveAsFile(const QString &rawPath) {
         }
         innerObj.insert("changes", changesArr);
 
-        // Map attached images array into standard structural JSON schema
         QJsonArray imagesArr;
-        for (const QString &img : entry.imagePaths) {
-            imagesArr.append(img);
+        for (const QString &imgUrl : entry.imagePaths) {
+            imagesArr.append(imgUrl);
         }
         innerObj.insert("images", imagesArr);
 
@@ -189,7 +196,6 @@ bool ChangeLogManager::commitVersionEntry(int targetIndex, const QString &v, con
 
     m_entries[targetIndex].versionString = v.trimmed();
     m_entries[targetIndex].dateString = d.trimmed();
-
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     m_entries[targetIndex].changeItems = joinedChanges.split("\n", Qt::SkipEmptyParts);
     m_entries[targetIndex].imagePaths = joinedImages.split("\n", Qt::SkipEmptyParts);
@@ -222,7 +228,7 @@ QVariantList ChangeLogManager::fetchSerializedEntries() const {
         map.insert("version", entry.versionString);
         map.insert("date", entry.dateString);
         map.insert("changes", entry.changeItems);
-        map.insert("images", entry.imagePaths); // Pass through to high-level visualizers
+        map.insert("images", entry.imagePaths);
         list.append(map);
     }
     return list;
@@ -276,8 +282,7 @@ QString ChangeLogManager::copyImageToUploads(const QString &sourceUrl) {
     }
 
     QFileInfo fileInfo(srcPath);
-    QString uniqueName = QString::number(QDateTime::currentMSecsSinceEpoch())
-                         + "_" + fileInfo.fileName();
+    QString uniqueName = QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + fileInfo.fileName();
     QString targetFilePath = uploadDirPath + "/" + uniqueName;
 
     if (QFile::copy(srcPath, targetFilePath)) {
@@ -291,36 +296,45 @@ QString ChangeLogManager::copyImageToUploads(const QString &sourceUrl) {
 bool ChangeLogManager::deleteImageFromUploads(const QString &fileUrlOrPath) {
     if (fileUrlOrPath.isEmpty()) return false;
 
-    // Convert potential file:// URLs or raw paths into clean native file system paths
     QString targetPath = sanitizeUrlToNativePath(fileUrlOrPath);
-
-    // If the path was stored as relative to the application binary, resolve it absolutely
     if (QDir::isRelativePath(targetPath)) {
         targetPath = QCoreApplication::applicationDirPath() + "/" + targetPath;
     }
 
     QFileInfo fileInfo(targetPath);
     QString absoluteFilePath = fileInfo.absoluteFilePath();
-
-    // Resolve the strict absolute canonical path of the uploads folder
     QString uploadDirPath = QFileInfo(QCoreApplication::applicationDirPath() + "/upload").absoluteFilePath();
 
-    // Security boundary validation check: prevent directory traversal escapes
     if (!absoluteFilePath.startsWith(uploadDirPath)) {
         emit statusMessageAlert("Security sandbox rejection: Action aborted.", false);
         return false;
     }
 
-    // Attempt physical file deletion if file exists on disk
+    // 1. Physically delete the image file from disk
+    bool deletedFromDisk = false;
     if (QFile::exists(absoluteFilePath)) {
-        if (QFile::remove(absoluteFilePath)) {
-            emit statusMessageAlert("Asset physically removed from disk.", true);
-            return true;
-        } else {
-            emit statusMessageAlert("Failed to remove file asset from disk permissions.", false);
-            return false;
+        deletedFromDisk = QFile::remove(absoluteFilePath);
+    }
+
+    // 2. ACTIVE MEMORY PURGE: Scans internal history models and clears references immediately
+    bool modelAltered = false;
+    for (int i = 0; i < m_entries.size(); ++i) {
+        if (m_entries[i].imagePaths.contains(fileUrlOrPath)) {
+            m_entries[i].imagePaths.removeAll(fileUrlOrPath);
+            modelAltered = true;
         }
     }
 
-    return false;
+    if (modelAltered) {
+        m_isDirty = true;
+        emit entriesChanged();
+        emit dirtyChanged();
+    }
+
+    if (deletedFromDisk) {
+        emit statusMessageAlert("Asset physically removed from storage.", true);
+        return true;
+    }
+
+    return modelAltered;
 }
