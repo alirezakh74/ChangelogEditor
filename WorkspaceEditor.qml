@@ -36,16 +36,13 @@ Rectangle {
     }
 
     function removeImageFromBuffer(idx) {
-            var imgs = currentStagingImages;
-            if (idx >= 0 && idx < imgs.length) {
-                // Securely invoke backend C++ file manipulation logic
-                BackendEngine.deleteImageFromUploads(imgs[idx]);
-
-                // Remove the reference entry from frontend state engine buffer
-                imgs.splice(idx, 1);
-                currentStagingImages = [...imgs];
-            }
+        var imgs = currentStagingImages;
+        if (idx >= 0 && idx < imgs.length) {
+            // Transactional state updates only. Disk mutations are handled safely by C++ GC upon save/load.
+            imgs.splice(idx, 1);
+            currentStagingImages = [...imgs];
         }
+    }
 
     function loadActiveEntryToForm(idx) {
         workingMode = "UPDATE";
